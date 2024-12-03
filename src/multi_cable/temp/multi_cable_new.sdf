@@ -1,0 +1,461 @@
+<?xml version="1.0" ?>
+<sdf version='1.7'>
+  <!-- Model starting from payload as the parent -->
+  <model name='flexible_cable'>
+
+    <!-- Define your constants and properties here -->
+    {% set blue_color = "0 0 0.8 1" %}
+    {% set red_color = "1 0 0 1" %}
+    {% set gray_color = "0.5 0.5 0.5 1" %}
+
+    <!-- Calculations for inertia -->
+    {% set inertia_factor_xy = (1.0/12.0) * segment_mass * (3 * rope_radius**2 + segment_length**2) %}
+    {% set inertia_factor_z = (1.0/2.0) * segment_mass * rope_radius**2 %}
+
+    {% set inertia_load_xy = (1.0/12.0) * payload_mass * (3 * payload_radius**2 + payload_height**2) %}
+    {% set inertia_load_z = (1.0/12.0) * payload_mass * payload_radius**2 %}
+
+    <!-- Payload initial position -->
+    {% set payload_initial_z_position = 0.0 %}
+
+    <!-- Elasticity Params -->
+    {% set cfm = (stepsize * stiffness) / (stepsize * stiffness + damping) %}
+    {% set erp = 1.0 / (stepsize * stiffness + damping) %}
+
+    <!-- Payload link as the parent link -->
+    <link name="payload">
+      <pose>
+        0 0 {{ height }} 0 0 0
+      </pose>
+      <inertial>
+        <mass>{{ payload_mass }}</mass>
+        <inertia>
+          <ixx>{{ inertia_load_xy }}</ixx>
+          <iyy>{{ inertia_load_xy }}</iyy>
+          <izz>{{ inertia_load_z }}</izz>
+        </inertia>
+      </inertial>
+      <collision name='payload_collision'>
+        <geometry>
+          <cylinder>
+            <length>{{ payload_height }}</length>
+            <radius>{{ payload_radius }}</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name='payload_visual'>
+        <geometry>
+          <cylinder>
+            <length>{{ payload_height }}</length>
+            <radius>{{ payload_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/CeilingTiled</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+
+    {% for cable in range(cable_count) %}
+    <!-- Calculate attachment point on the payload -->
+    {% set theta = 2 * math.pi * cable / cable_count %}
+    {% set attachment_x = (payload_radius) * math.cos(theta) %}
+    {% set attachment_y = (payload_radius) * math.sin(theta) %}
+    {% set attachment_z = - payload_height / 2 %}
+    
+    <!-- Joint connecting payload to the first cable segment -->
+    <joint name='cable_{{ cable+1 }}_joint_payload' type='universal'>
+      <pose relative_to="payload">
+        {{ attachment_x }} {{ attachment_y }} {{ attachment_z }}  0 {{angle}} {{theta}}
+      </pose>
+      <parent>payload</parent>
+      <child>cable_{{ cable+1 }}_segment_0_p</child>
+      <axis>
+        <xyz>0 1 0</xyz>
+      </axis>
+      <axis2>
+        <xyz>1 0 0</xyz>
+      </axis2>
+      <!-- <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+          <velocity_threshold>0.001</velocity_threshold>
+          <time_threshold>0.1</time_threshold>
+          <zero_velocity_enabled>true</zero_velocity_enabled>
+        </ode>
+      </physics> -->
+    </joint>
+
+    <!-- First parent segment connected to the payload -->
+    <link name='cable_{{ cable+1 }}_segment_0_p'>
+      <pose relative_to="cable_{{ cable+1 }}_joint_payload">
+        0 0 {{ segment_length/4 }} 0 0 0
+      </pose>
+      <inertial>
+        <mass>{{ segment_mass }}</mass>
+        <inertia>
+          <ixx>{{ inertia_factor_xy }}</ixx>
+          <iyy>{{ inertia_factor_xy }}</iyy>
+          <izz>{{ inertia_factor_z }}</izz>
+        </inertia>
+      </inertial>
+      <collision name='cable_{{ cable+1 }}_segment_0_p_collision'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length/2 }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <collide_bitmask>0x01</collide_bitmask>
+      </collision>
+      <visual name='cable_{{ cable+1 }}_segment_0_p_visual'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length/2 }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+
+    <joint name="cable_{{ cable+1 }}_prismatic_segment_0" type="prismatic">
+        <child>cable_{{ cable+1 }}_segment_0_c</child>
+        <parent>cable_{{ cable+1 }}_segment_0_p</parent>
+        <pose relative_to="cable_{{ cable+1 }}_segment_0_p">0 0 {{segment_length/4}} 0 -0 0</pose>
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+            </limit>
+            <dynamics>
+              <spring_stiffness>{{stiffness}}</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>{{damping}}</damping> 
+              <friction>{{friction}}</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+          <!-- <velocity_threshold>0.001</velocity_threshold>
+          <time_threshold>0.1</time_threshold>
+          <zero_velocity_enabled>true</zero_velocity_enabled> -->
+        </ode>
+      </physics>
+    </joint>
+
+    <link name='cable_{{ cable+1 }}_segment_0_c'>
+      <pose relative_to="cable_{{ cable+1 }}_prismatic_segment_0">
+        0 0 {{ segment_length/4 }} 0 0 0
+      </pose>
+      <inertial>
+        <mass>{{ segment_mass }}</mass>
+        <inertia>
+          <ixx>{{ inertia_factor_xy }}</ixx>
+          <iyy>{{ inertia_factor_xy }}</iyy>
+          <izz>{{ inertia_factor_z }}</izz>
+        </inertia>
+      </inertial>
+      <collision name='cable_{{ cable+1 }}_segment_0_c_collision'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length/2 }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <collide_bitmask>0x01</collide_bitmask>
+      </collision>
+      <visual name='cable_{{ cable+1 }}_segment_0_c_visual'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length/2 }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+
+    {% for segment in range(1, segment_count) %}
+
+    <joint name='cable_{{ cable+1 }}_joint_{{segment}}' type='universal'>
+      <pose relative_to="cable_{{ cable+1 }}_segment_{{segment-1}}_c">
+        0 0 {{segment_length/4}}  0 0 0
+      </pose>
+      <parent>cable_{{ cable+1 }}_segment_{{segment-1}}_c</parent>
+      <child>cable_{{ cable+1 }}_segment_{{ segment }}_p</child>
+      <axis>
+        <xyz>0 1 0</xyz>
+      </axis>
+      <axis2>
+        <xyz>1 0 0</xyz>
+      </axis2>
+      <!-- <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+          <velocity_threshold>0.001</velocity_threshold>
+          <time_threshold>0.1</time_threshold>
+          <zero_velocity_enabled>true</zero_velocity_enabled>
+        </ode>
+      </physics> -->
+    </joint>
+
+    <!-- Subsequent cable segments -->
+    <link name='cable_{{ cable+1 }}_segment_{{ segment }}_p'>
+      <pose relative_to="cable_{{ cable+1 }}_joint_{{segment}}">
+        0 0 {{segment_length/4}} 0 0 0
+      </pose>
+      <inertial>
+        <mass>{{ segment_mass }}</mass>
+        <inertia>
+          <ixx>{{ inertia_factor_xy }}</ixx>
+          <iyy>{{ inertia_factor_xy }}</iyy>
+          <izz>{{ inertia_factor_z }}</izz>
+        </inertia>
+      </inertial>
+      <collision name='cable_{{ cable+1 }}_segment_{{ segment }}_p_collision'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length/2 }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <collide_bitmask>0x01</collide_bitmask>
+      </collision>
+      <visual name='cable_{{ cable+1 }}_segment_{{ segment }}_p_visual'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length/2 }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+
+    <joint name="cable_{{ cable+1 }}_prismatic_segment_{{segment}}" type="prismatic">
+        <child>cable_{{ cable+1 }}_segment_{{ segment }}_c</child>
+        <parent>cable_{{ cable+1 }}_segment_{{ segment }}_p</parent>
+        <pose relative_to="cable_{{ cable+1 }}_segment_{{ segment }}_p">0 0 {{segment_length/4}} 0 -0 0</pose>
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+            </limit>
+            <dynamics>
+              <spring_stiffness>{{stiffness}}</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>{{damping}}</damping> 
+              <friction>{{friction}}</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+          <!-- <velocity_threshold>0.001</velocity_threshold>
+          <time_threshold>0.1</time_threshold>
+          <zero_velocity_enabled>true</zero_velocity_enabled> -->
+        </ode>
+      </physics>
+    </joint>
+
+    <link name='cable_{{ cable+1 }}_segment_{{ segment }}_c'>
+      <pose relative_to="cable_{{ cable+1 }}_prismatic_segment_{{segment}}">
+        0 0 {{segment_length/4}} 0 0 0
+      </pose>
+      <inertial>
+        <mass>{{ segment_mass }}</mass>
+        <inertia>
+          <ixx>{{ inertia_factor_xy }}</ixx>
+          <iyy>{{ inertia_factor_xy }}</iyy>
+          <izz>{{ inertia_factor_z }}</izz>
+        </inertia>
+      </inertial>
+      <collision name='cable_{{ cable+1 }}_segment_{{ segment }}_c_collision'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length/2 }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <collide_bitmask>0x01</collide_bitmask>
+      </collision>
+      <visual name='cable_{{ cable+1 }}_segment_{{ segment }}_c_visual'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length/2 }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+    {% endfor %}
+
+    <!-- Attach the last segment to the world -->
+    <joint name='cable_{{ cable+1 }}_base_universal' type='universal'>
+      <pose relative_to="cable_{{ cable+1 }}_segment_{{ segment_count-1 }}_c">
+        0 0 {{ segment_length/4 }}  0 0 0
+      </pose>
+      <parent>cable_{{ cable+1 }}_segment_{{ segment_count-1 }}_c</parent>
+      <child>cable_{{ cable+1 }}_attach</child>
+      <axis>
+        <xyz>0 1 0</xyz>
+      </axis>
+      <axis2>
+        <xyz>1 0 0</xyz>
+      </axis2>
+    </joint>
+
+    <link name='cable_{{ cable+1 }}_attach'>
+      <pose relative_to='cable_{{ cable+1 }}_base_universal'>0 0 0.005 0 -0 0</pose>
+      <inertial>
+        <mass>0.0001</mass>
+        <inertia>
+          <ixx>1e-5</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>1e-5</iyy>
+          <iyz>0</iyz>
+          <izz>1e-5</izz>
+        </inertia>
+      </inertial>
+      <collision name='cable_{{ cable+1 }}_attach_collision'>
+        <geometry>
+          <box>
+            <size>0.005 0.005 0.005</size>
+          </box>
+        </geometry>
+      </collision>
+      <visual name='cable_{{ cable+1 }}_attach_visual'>
+        <geometry>
+          <box>
+            <size>0.005 0.005 0.005</size>
+          </box>
+        </geometry>
+      </visual>
+      <self_collide>0</self_collide>
+    </link>
+
+    <!-- <joint name='cable_{{ cable+1 }}_fixed_to_world' type='fixed'>
+      <pose relative_to='cable_{{ cable+1 }}_attach'>
+      0 0 0 0 0 0
+      </pose>
+      <parent>world</parent>
+      <child>cable_{{ cable+1 }}_attach</child>
+    </joint> -->
+    {% endfor %}
+
+
+    <!-- <plugin name='p3d_base_controller' filename='libgazebo_ros_p3d.so'>
+      <alwaysOn>1</alwaysOn>
+      <updateRate>1000.0</updateRate>
+      <bodyName>cable_1_segment_{{ segment_count-1 }}_c</bodyName>
+      <topicName>end_pos</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <frameName>world</frameName>
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+    </plugin>
+    <plugin name='p3d_base_controller' filename='libgazebo_ros_p3d.so'>
+      <alwaysOn>1</alwaysOn>
+      <updateRate>1000.0</updateRate>
+      <bodyName>cable_1_segment_{{ segment_count-1 }}_c</bodyName>
+      <topicName>end_link</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <frameName>world</frameName>
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+    </plugin>
+
+
+    <plugin name='p3d_base_controller' filename='libgazebo_ros_p3d.so'>
+      <alwaysOn>1</alwaysOn>
+      <updateRate>1000.0</updateRate>
+      <bodyName>cable_1_segment_0_p</bodyName>
+      <topicName>start_pos</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <frameName>world</frameName>
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+    </plugin>
+    <plugin name='p3d_base_controller' filename='libgazebo_ros_p3d.so'>
+      <alwaysOn>1</alwaysOn>
+      <updateRate>1000.0</updateRate>
+      <bodyName>cable_1_segment_{{ segment_count-1 }}_p</bodyName>
+      <topicName>start_link</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <frameName>world</frameName>
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+    </plugin>
+
+    <plugin name='p3d_base_controller' filename='libgazebo_ros_p3d.so'>
+      <alwaysOn>1</alwaysOn>
+      <updateRate>1000.0</updateRate>
+      <bodyName>cable_1_segment_{{ segment_count-1 }}_c</bodyName>
+      <topicName>vel_rel</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <frameName>cable_1_segment_{{ segment_count-1 }}_p</frameName>
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+    </plugin>
+
+    <plugin name='ft_sensor' filename='libgazebo_ros_ft_sensor.so'>
+      <updateRate>1000.0</updateRate>
+      <topicName>cableEnd_ft_sensor</topicName>
+      <jointName>cable_1_base_universal</jointName>
+    </plugin>
+    <plugin name='ft_sensor' filename='libgazebo_ros_ft_sensor.so'>
+      <updateRate>1000.0</updateRate>
+      <topicName>prismatic_ft_sensor</topicName>
+      <jointName>cable_1_prismatic_segment_{{segment_count-1}}</jointName>
+    </plugin> -->
+    
+   
+  </model>
+</sdf>

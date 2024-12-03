@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<robot name="my_drone">
+  <link name="base_link">
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.02" ixy="0.0" ixz="0.0" iyy="0.02" iyz="0.0" izz="0.02"/>
+    </inertial>
+  </link>
+
+  <!-- 定义固定关节，将旋翼链接与基础链接连接 -->
+  <joint name="rotor_0_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="rotor_0_joint"/>
+  </joint>
+
+  <joint name="rotor_1_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="rotor_1_joint"/>
+  </joint>
+
+  <joint name="rotor_2_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="rotor_2_joint"/>
+  </joint>
+
+  <joint name="rotor_3_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="rotor_3_joint"/>
+  </joint>
+
+  <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+        <robotNamespace>/my_drone</robotNamespace>
+    </plugin>
+    </gazebo>
+
+</robot>

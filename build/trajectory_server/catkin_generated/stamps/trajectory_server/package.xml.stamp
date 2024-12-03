@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>trajectory_server</name>
+  <version>0.0.1</version>
+  <description>The trajectory_server package</description>
+
+  <maintainer email="johntgz@nus.edu.sg">John Tan</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- 构建依赖项 -->
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>mavros_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>trajectory_msgs</build_depend>
+  <build_depend>controller_msgs</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>gestelt_msgs</build_depend>
+
+  <!-- 导出依赖项 -->
+  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <build_export_depend>mavros_msgs</build_export_depend>
+  <build_export_depend>geometry_msgs</build_export_depend>
+  <build_export_depend>nav_msgs</build_export_depend>
+  <build_export_depend>trajectory_msgs</build_export_depend>
+  <build_export_depend>controller_msgs</build_export_depend>
+  <build_export_depend>std_srvs</build_export_depend>
+  <build_export_depend>visualization_msgs</build_export_depend>
+  <build_export_depend>gestelt_msgs</build_export_depend>
+
+  <!-- 运行时依赖项 -->
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>mavros_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend>
+  <exec_depend>controller_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>visualization_msgs</exec_depend>
+  <exec_depend>gestelt_msgs</exec_depend>
+
+  <export>
+    <!-- 其他工具可以在此处请求额外的信息 -->
+  </export>
+</package>

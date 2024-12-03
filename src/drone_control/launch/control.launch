@@ -1,0 +1,4 @@
+<launch>
+    <!-- 启动控制节点 -->
+    <node name="drone_controller" pkg="drone_control" type="controller.py" output="screen"/>
+</launch>

@@ -1,0 +1,204 @@
+<?xml version="1.0"?>
+<robot name="drone" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Base Link -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1.5"/>
+      <inertia ixx="0.029125" ixy="0" ixz="0" iyy="0.029125" iyz="0" izz="0.055225"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://iris/meshes/iris.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="DarkGrey"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.47 0.47 0.11"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- IMU Link -->
+  <link name="imu_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.015"/>
+      <inertia ixx="1e-05" ixy="0" ixz="0" iyy="1e-05" iyz="0" izz="1e-05"/>
+    </inertial>
+  </link>
+
+  <!-- IMU Joint -->
+  <joint name="imu_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit effort="0" velocity="0" lower="0" upper="0"/>
+  </joint>
+
+  <!-- Rotors -->
+  <!-- Rotor 0 -->
+  <link name="rotor_0">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="9.75e-07" ixy="0" ixz="0" iyy="0.000273104" iyz="0" izz="0.000274004"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://iris/meshes/iris_prop_ccw.dae" scale="1 1 1"/>
+      </geometry>
+      <material name="Blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.128" length="0.005"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="rotor_0_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="rotor_0"/>
+    <origin xyz="0.13 -0.22 0.023" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1e+16" upper="1e+16"/>
+  </joint>
+
+  <!-- Rotor 1 -->
+  <link name="rotor_1">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="9.75e-07" ixy="0" ixz="0" iyy="0.000273104" iyz="0" izz="0.000274004"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://iris/meshes/iris_prop_ccw.dae" scale="1 1 1"/>
+      </geometry>
+      <material name="DarkGrey"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.128" length="0.005"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="rotor_1_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="rotor_1"/>
+    <origin xyz="-0.13 0.2 0.023" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1e+16" upper="1e+16"/>
+  </joint>
+
+  <!-- Rotor 2 -->
+  <link name="rotor_2">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="9.75e-07" ixy="0" ixz="0" iyy="0.000273104" iyz="0" izz="0.000274004"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://iris/meshes/iris_prop_cw.dae" scale="1 1 1"/>
+      </geometry>
+      <material name="Blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.128" length="0.005"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="rotor_2_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="rotor_2"/>
+    <origin xyz="0.13 0.22 0.023" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1e+16" upper="1e+16"/>
+  </joint>
+
+  <!-- Rotor 3 -->
+  <link name="rotor_3">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="9.75e-07" ixy="0" ixz="0" iyy="0.000273104" iyz="0" izz="0.000274004"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://iris/meshes/iris_prop_cw.dae" scale="1 1 1"/>
+      </geometry>
+      <material name="DarkGrey"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.128" length="0.005"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="rotor_3_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="rotor_3"/>
+    <origin xyz="-0.13 -0.2 0.023" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1e+16" upper="1e+16"/>
+  </joint>
+
+  <!-- Plugins -->
+  <!-- Define xacro macro for motor plugin to reduce redundancy -->
+  <xacro:macro name="motor_plugin" params="joint_name motor_number direction">
+    <gazebo>
+      <plugin name="${joint_name}_motor_model" filename="libgazebo_motor_model.so">
+        <robotNamespace/>
+        <jointName>${joint_name}</jointName>
+        <linkName>${joint_name}</linkName>
+        <turningDirection>${direction}</turningDirection>
+        <timeConstantUp>0.0125</timeConstantUp>
+        <timeConstantDown>0.025</timeConstantDown>
+        <maxRotVelocity>1100</maxRotVelocity>
+        <motorConstant>5.84e-06</motorConstant>
+        <momentConstant>0.06</momentConstant>
+        <commandSubTopic>/gazebo/command/motor_speed</commandSubTopic>
+        <motorNumber>${motor_number}</motorNumber>
+        <rotorDragCoefficient>0.000175</rotorDragCoefficient>
+        <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+        <motorSpeedPubTopic>/motor_speed/${motor_number}</motorSpeedPubTopic>
+        <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- Using the motor plugin macro -->
+  <xacro:motor_plugin joint_name="rotor_0_joint" motor_number="0" direction="ccw"/>
+  <xacro:motor_plugin joint_name="rotor_1_joint" motor_number="1" direction="ccw"/>
+  <xacro:motor_plugin joint_name="rotor_2_joint" motor_number="2" direction="cw"/>
+  <xacro:motor_plugin joint_name="rotor_3_joint" motor_number="3" direction="cw"/>
+
+  <gazebo>
+  <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+    <robotNamespace>/my_drone</robotNamespace>
+    <controlPeriod>0.001</controlPeriod>
+    <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+  </plugin>
+</gazebo>
+
+
+</robot>

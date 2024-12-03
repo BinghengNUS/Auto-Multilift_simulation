@@ -1,0 +1,8 @@
+prefix=/home/carlson/ros/multi_cable/devel
+
+Name: trajectory_server
+Description: Description of trajectory_server
+Version: 0.0.1
+Cflags: -I/home/carlson/ros/multi_cable/src/gestelt/trajectory_server/include
+Libs: -L${prefix}/lib -ltrajectory_server
+Requires: roscpp std_msgs geometry_msgs nav_msgs mavros_msgs trajectory_msgs controller_msgs std_srvs visualization_msgs gestelt_msgs

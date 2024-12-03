@@ -1,0 +1,31 @@
+<launch>
+  <!-- Launch Gazebo with an empty world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="paused" value="true"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+
+  <!-- Load the URDF into the ROS Parameter Server -->
+  <!-- <param name="robot_description" command="$(find xacro)/xacro - -inorder '$(find multi_cable)/urdf/joint_demo.urdf.xacro'" /> -->
+  <!-- <param name="robot_description" command="$(find xacro)/xacro - -inorder '$(find multi_cable)/urdf/joint_cfm.urdf.xacro'" /> -->
+  <!-- <param name="robot_description" command="'$(find multi_cable)/sdf/cable_liyc_hor.sdf'" /> -->
+
+  <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
+  <!-- <node name="spawn_model" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+    args="-file $(find multi_cable)/sdf/urdfToSdf_wrong.sdf -sdf -model cable"/> -->
+
+  <!-- <node name="spawn_model" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+    args="-file $(find multi_cable)/sdf/cable_urdfTosdf.sdf -sdf -model cable"/> -->
+
+  <node name="spawn_model" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+    args="-file $(find multi_cable)/sdf/cable_Mul.sdf -sdf -model cable"/>
+
+  <!-- Start the distance calculator node OF SDF FILES -->
+  <!-- <node name="distance_calculator" pkg="multi_cable" type="distance_calculator_sdf_node" output="screen" />  -->
+  <node name="damping_tester" pkg="multi_cable" type="damping_node" output="screen" /> 
+
+</launch>

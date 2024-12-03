@@ -1,0 +1,8 @@
+prefix=/home/carlson/ros/multi_cable/devel
+
+Name: multi_cable
+Description: Description of multi_cable
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: gazebo_plugins gazebo_ros geometry_msgs roscpp rospy std_msgs tf sensor_msgs nav_msgs controller_manager joint_state_controller effort_controllers

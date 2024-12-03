@@ -1,0 +1,8 @@
+[35m[1mScanning dependencies of target trajectory_server[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/trajectory_server.dir/src/traj_server.cpp.o[0m
+[ 50%] [32m[1mLinking CXX shared library /home/carlson/ros/multi_cable/devel/lib/libtrajectory_server.so[0m
+[ 50%] Built target trajectory_server
+[35m[1mScanning dependencies of target traj_server_node[0m
+[ 75%] [32mBuilding CXX object CMakeFiles/traj_server_node.dir/src/traj_server_node.cpp.o[0m
+[100%] [32m[1mLinking CXX executable /home/carlson/ros/multi_cable/devel/lib/trajectory_server/traj_server_node[0m
+[100%] Built target traj_server_node

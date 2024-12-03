@@ -1,0 +1,8 @@
+prefix=/home/carlson/ros/multi_cable/install
+
+Name: trajectory_planner
+Description: Description of trajectory_planner
+Version: 0.0.1
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib 
+Requires: 

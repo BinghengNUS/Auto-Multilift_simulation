@@ -1,0 +1,8 @@
+prefix=/home/carlson/ros/multi_cable/devel
+
+Name: trajectory_planner
+Description: Description of trajectory_planner
+Version: 0.0.1
+Cflags: -I/home/carlson/ros/multi_cable/src/gestelt/trajectory_planner/include
+Libs: -L${prefix}/lib 
+Requires: 

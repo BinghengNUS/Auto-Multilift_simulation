@@ -1,0 +1,7005 @@
+<?xml version="1.0" ?>
+<sdf version='1.7'>
+
+  <!-- Change record：
+  1. Multiple cables, SHARED CHILD.
+     // 另一方案是, modeling from the payload (共享parent更为常见)
+  2. Temporarily use cable_X_base_link to replace the drones
+  3. **Modify the plugin**, 算不同绳子对应的stiffness
+  -->
+
+  <!-- Record:
+      Oct22:最后一个cylinder是fixed到payload上, segment=5..时会不稳定
+       Oct23:universal pose调整后不会跑崩
+   -->
+
+  <model name='flexible_cable'>
+
+  <!-- Color properties -->
+  
+  
+  
+
+  <!-- Segment Constants -->
+  
+  
+
+  
+  
+  
+
+  <!-- base_link initialization -->
+  
+  
+  
+
+  <!-- Elasiticity Params -->
+  
+  
+
+    
+    <!-- 根据绳子数量平均初始化不同base_link的坐标 -->
+    <joint name='cable_1_fixed_to_world' type='fixed'>
+      <pose relative_to='__model__'>
+      1.1071067811865474 
+      -6.779073879472172e-17 
+      2.0 
+      0
+      0 
+      1.5707963267948966
+      </pose>
+      <parent>world</parent>
+      <child>cable_1_base_link</child>
+    </joint>
+
+    <link name='cable_1_base_link'>
+      <pose relative_to='cable_1_fixed_to_world'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+        <inertia>
+          <ixx>0.01</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.01</iyy>
+          <iyz>0</iyz>
+          <izz>0.01</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_base_link_collision'>
+        <geometry>
+          <box>
+            <size>0.08 0.08 0.04</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_base_link_visual'>
+        <geometry>
+          <box>
+            <size>0.08 0.08 0.04</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/BlackTransparent</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+    </link>
+
+    <!-- Generate the first segment LINKED TO base_link -->
+    <joint name="cable_1_segment_0_UNIVERSAL" type="universal">
+        <child>cable_1_segment_0_cylinder_1</child>
+        <parent>cable_1_base_link</parent>
+        <pose relative_to='cable_1_base_link'>
+        0 0 -0.02 0.7853981633974483 0 0</pose>
+        <!-- 增加绳子的偏转角 -->
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_1_segment_0_cylinder_1'>
+      <pose relative_to='cable_1_segment_0_UNIVERSAL'>0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_0_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_0_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_1_prismatic_segment_0" type="prismatic">
+        <child>cable_1_segment_0_cylinder_2</child>
+        <parent>cable_1_segment_0_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+    </joint>
+
+
+    <link name='cable_1_segment_0_cylinder_2'>
+      <pose relative_to='cable_1_segment_0_UNIVERSAL'>0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_0_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_0_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_1_segment_1_UNIVERSAL" type="universal">
+        <child>cable_1_segment_1_cylinder_1</child>
+        <parent>cable_1_segment_0_cylinder_2</parent>
+        <pose relative_to='cable_1_segment_0_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_1_segment_1_cylinder_1'>
+      <pose relative_to='cable_1_segment_1_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_1_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_1_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_1_prismatic_segment_1" type="prismatic">
+        <child>cable_1_segment_1_cylinder_2</child>
+        <parent>cable_1_segment_1_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_1_segment_1_cylinder_2'>
+      <pose relative_to='cable_1_segment_1_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_1_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_1_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_1_segment_2_UNIVERSAL" type="universal">
+        <child>cable_1_segment_2_cylinder_1</child>
+        <parent>cable_1_segment_1_cylinder_2</parent>
+        <pose relative_to='cable_1_segment_1_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_1_segment_2_cylinder_1'>
+      <pose relative_to='cable_1_segment_2_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_2_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_2_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_1_prismatic_segment_2" type="prismatic">
+        <child>cable_1_segment_2_cylinder_2</child>
+        <parent>cable_1_segment_2_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_1_segment_2_cylinder_2'>
+      <pose relative_to='cable_1_segment_2_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_2_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_2_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_1_segment_3_UNIVERSAL" type="universal">
+        <child>cable_1_segment_3_cylinder_1</child>
+        <parent>cable_1_segment_2_cylinder_2</parent>
+        <pose relative_to='cable_1_segment_2_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_1_segment_3_cylinder_1'>
+      <pose relative_to='cable_1_segment_3_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_3_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_3_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_1_prismatic_segment_3" type="prismatic">
+        <child>cable_1_segment_3_cylinder_2</child>
+        <parent>cable_1_segment_3_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_1_segment_3_cylinder_2'>
+      <pose relative_to='cable_1_segment_3_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_3_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_3_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_1_segment_4_UNIVERSAL" type="universal">
+        <child>cable_1_segment_4_cylinder_1</child>
+        <parent>cable_1_segment_3_cylinder_2</parent>
+        <pose relative_to='cable_1_segment_3_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_1_segment_4_cylinder_1'>
+      <pose relative_to='cable_1_segment_4_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_4_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_4_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_1_prismatic_segment_4" type="prismatic">
+        <child>cable_1_segment_4_cylinder_2</child>
+        <parent>cable_1_segment_4_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_1_segment_4_cylinder_2'>
+      <pose relative_to='cable_1_segment_4_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_4_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_4_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_1_segment_5_UNIVERSAL" type="universal">
+        <child>cable_1_segment_5_cylinder_1</child>
+        <parent>cable_1_segment_4_cylinder_2</parent>
+        <pose relative_to='cable_1_segment_4_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_1_segment_5_cylinder_1'>
+      <pose relative_to='cable_1_segment_5_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_5_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_5_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_1_prismatic_segment_5" type="prismatic">
+        <child>cable_1_segment_5_cylinder_2</child>
+        <parent>cable_1_segment_5_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_1_segment_5_cylinder_2'>
+      <pose relative_to='cable_1_segment_5_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_5_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_5_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_1_segment_6_UNIVERSAL" type="universal">
+        <child>cable_1_segment_6_cylinder_1</child>
+        <parent>cable_1_segment_5_cylinder_2</parent>
+        <pose relative_to='cable_1_segment_5_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_1_segment_6_cylinder_1'>
+      <pose relative_to='cable_1_segment_6_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_6_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_6_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_1_prismatic_segment_6" type="prismatic">
+        <child>cable_1_segment_6_cylinder_2</child>
+        <parent>cable_1_segment_6_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_1_segment_6_cylinder_2'>
+      <pose relative_to='cable_1_segment_6_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_6_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_6_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_1_segment_7_UNIVERSAL" type="universal">
+        <child>cable_1_segment_7_cylinder_1</child>
+        <parent>cable_1_segment_6_cylinder_2</parent>
+        <pose relative_to='cable_1_segment_6_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_1_segment_7_cylinder_1'>
+      <pose relative_to='cable_1_segment_7_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_7_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_7_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_1_prismatic_segment_7" type="prismatic">
+        <child>cable_1_segment_7_cylinder_2</child>
+        <parent>cable_1_segment_7_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_1_segment_7_cylinder_2'>
+      <pose relative_to='cable_1_segment_7_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_7_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_7_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_1_segment_8_UNIVERSAL" type="universal">
+        <child>cable_1_segment_8_cylinder_1</child>
+        <parent>cable_1_segment_7_cylinder_2</parent>
+        <pose relative_to='cable_1_segment_7_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_1_segment_8_cylinder_1'>
+      <pose relative_to='cable_1_segment_8_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_8_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_8_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_1_prismatic_segment_8" type="prismatic">
+        <child>cable_1_segment_8_cylinder_2</child>
+        <parent>cable_1_segment_8_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_1_segment_8_cylinder_2'>
+      <pose relative_to='cable_1_segment_8_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_8_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_8_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_1_segment_9_UNIVERSAL" type="universal">
+        <child>cable_1_segment_9_cylinder_1</child>
+        <parent>cable_1_segment_8_cylinder_2</parent>
+        <pose relative_to='cable_1_segment_8_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_1_segment_9_cylinder_1'>
+      <pose relative_to='cable_1_segment_9_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_9_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_9_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_1_prismatic_segment_9" type="prismatic">
+        <child>cable_1_segment_9_cylinder_2</child>
+        <parent>cable_1_segment_9_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+      <!-- <sensor name="force_torque" type="force_torque">
+          <update_rate>2000.0</update_rate>
+          <always_on>true</always_on>
+          <visualize>true</visualize>
+      </sensor> -->
+      
+    </joint>
+
+
+    <link name='cable_1_segment_9_cylinder_2'>
+      <pose relative_to='cable_1_segment_9_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_1_segment_9_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_1_segment_9_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+
+    <!-- End JOINT to connect cable and paload -->
+    <joint name="cable_1_endjoint" type="universal">
+        <child>payload</child>
+        <parent>cable_1_segment_9_cylinder_2</parent>
+        <pose relative_to='cable_1_segment_9_cylinder_2'>
+        0.0 0.0 -0.07500000000000001 0.0 0.0 0.0
+        </pose>
+        <axis>
+          <xyz>1 0 0</xyz>
+        </axis>
+        <axis2>
+          <xyz>0 1 0</xyz>
+        </axis2>
+        <!-- <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics> -->
+    </joint>
+    
+    <!-- 根据绳子数量平均初始化不同base_link的坐标 -->
+    <joint name='cable_2_fixed_to_world' type='fixed'>
+      <pose relative_to='__model__'>
+      1.3558147758944345e-16 
+      1.1071067811865474 
+      2.0 
+      0
+      0 
+      3.141592653589793
+      </pose>
+      <parent>world</parent>
+      <child>cable_2_base_link</child>
+    </joint>
+
+    <link name='cable_2_base_link'>
+      <pose relative_to='cable_2_fixed_to_world'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+        <inertia>
+          <ixx>0.01</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.01</iyy>
+          <iyz>0</iyz>
+          <izz>0.01</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_base_link_collision'>
+        <geometry>
+          <box>
+            <size>0.08 0.08 0.04</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_base_link_visual'>
+        <geometry>
+          <box>
+            <size>0.08 0.08 0.04</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/BlackTransparent</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+    </link>
+
+    <!-- Generate the first segment LINKED TO base_link -->
+    <joint name="cable_2_segment_0_UNIVERSAL" type="universal">
+        <child>cable_2_segment_0_cylinder_1</child>
+        <parent>cable_2_base_link</parent>
+        <pose relative_to='cable_2_base_link'>
+        0 0 -0.02 0.7853981633974483 0 0</pose>
+        <!-- 增加绳子的偏转角 -->
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_2_segment_0_cylinder_1'>
+      <pose relative_to='cable_2_segment_0_UNIVERSAL'>0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_0_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_0_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_2_prismatic_segment_0" type="prismatic">
+        <child>cable_2_segment_0_cylinder_2</child>
+        <parent>cable_2_segment_0_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+    </joint>
+
+
+    <link name='cable_2_segment_0_cylinder_2'>
+      <pose relative_to='cable_2_segment_0_UNIVERSAL'>0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_0_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_0_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_2_segment_1_UNIVERSAL" type="universal">
+        <child>cable_2_segment_1_cylinder_1</child>
+        <parent>cable_2_segment_0_cylinder_2</parent>
+        <pose relative_to='cable_2_segment_0_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_2_segment_1_cylinder_1'>
+      <pose relative_to='cable_2_segment_1_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_1_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_1_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_2_prismatic_segment_1" type="prismatic">
+        <child>cable_2_segment_1_cylinder_2</child>
+        <parent>cable_2_segment_1_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_2_segment_1_cylinder_2'>
+      <pose relative_to='cable_2_segment_1_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_1_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_1_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_2_segment_2_UNIVERSAL" type="universal">
+        <child>cable_2_segment_2_cylinder_1</child>
+        <parent>cable_2_segment_1_cylinder_2</parent>
+        <pose relative_to='cable_2_segment_1_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_2_segment_2_cylinder_1'>
+      <pose relative_to='cable_2_segment_2_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_2_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_2_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_2_prismatic_segment_2" type="prismatic">
+        <child>cable_2_segment_2_cylinder_2</child>
+        <parent>cable_2_segment_2_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_2_segment_2_cylinder_2'>
+      <pose relative_to='cable_2_segment_2_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_2_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_2_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_2_segment_3_UNIVERSAL" type="universal">
+        <child>cable_2_segment_3_cylinder_1</child>
+        <parent>cable_2_segment_2_cylinder_2</parent>
+        <pose relative_to='cable_2_segment_2_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_2_segment_3_cylinder_1'>
+      <pose relative_to='cable_2_segment_3_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_3_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_3_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_2_prismatic_segment_3" type="prismatic">
+        <child>cable_2_segment_3_cylinder_2</child>
+        <parent>cable_2_segment_3_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_2_segment_3_cylinder_2'>
+      <pose relative_to='cable_2_segment_3_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_3_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_3_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_2_segment_4_UNIVERSAL" type="universal">
+        <child>cable_2_segment_4_cylinder_1</child>
+        <parent>cable_2_segment_3_cylinder_2</parent>
+        <pose relative_to='cable_2_segment_3_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_2_segment_4_cylinder_1'>
+      <pose relative_to='cable_2_segment_4_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_4_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_4_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_2_prismatic_segment_4" type="prismatic">
+        <child>cable_2_segment_4_cylinder_2</child>
+        <parent>cable_2_segment_4_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_2_segment_4_cylinder_2'>
+      <pose relative_to='cable_2_segment_4_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_4_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_4_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_2_segment_5_UNIVERSAL" type="universal">
+        <child>cable_2_segment_5_cylinder_1</child>
+        <parent>cable_2_segment_4_cylinder_2</parent>
+        <pose relative_to='cable_2_segment_4_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_2_segment_5_cylinder_1'>
+      <pose relative_to='cable_2_segment_5_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_5_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_5_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_2_prismatic_segment_5" type="prismatic">
+        <child>cable_2_segment_5_cylinder_2</child>
+        <parent>cable_2_segment_5_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_2_segment_5_cylinder_2'>
+      <pose relative_to='cable_2_segment_5_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_5_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_5_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_2_segment_6_UNIVERSAL" type="universal">
+        <child>cable_2_segment_6_cylinder_1</child>
+        <parent>cable_2_segment_5_cylinder_2</parent>
+        <pose relative_to='cable_2_segment_5_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_2_segment_6_cylinder_1'>
+      <pose relative_to='cable_2_segment_6_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_6_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_6_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_2_prismatic_segment_6" type="prismatic">
+        <child>cable_2_segment_6_cylinder_2</child>
+        <parent>cable_2_segment_6_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_2_segment_6_cylinder_2'>
+      <pose relative_to='cable_2_segment_6_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_6_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_6_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_2_segment_7_UNIVERSAL" type="universal">
+        <child>cable_2_segment_7_cylinder_1</child>
+        <parent>cable_2_segment_6_cylinder_2</parent>
+        <pose relative_to='cable_2_segment_6_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_2_segment_7_cylinder_1'>
+      <pose relative_to='cable_2_segment_7_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_7_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_7_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_2_prismatic_segment_7" type="prismatic">
+        <child>cable_2_segment_7_cylinder_2</child>
+        <parent>cable_2_segment_7_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_2_segment_7_cylinder_2'>
+      <pose relative_to='cable_2_segment_7_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_7_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_7_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_2_segment_8_UNIVERSAL" type="universal">
+        <child>cable_2_segment_8_cylinder_1</child>
+        <parent>cable_2_segment_7_cylinder_2</parent>
+        <pose relative_to='cable_2_segment_7_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_2_segment_8_cylinder_1'>
+      <pose relative_to='cable_2_segment_8_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_8_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_8_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_2_prismatic_segment_8" type="prismatic">
+        <child>cable_2_segment_8_cylinder_2</child>
+        <parent>cable_2_segment_8_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_2_segment_8_cylinder_2'>
+      <pose relative_to='cable_2_segment_8_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_8_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_8_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_2_segment_9_UNIVERSAL" type="universal">
+        <child>cable_2_segment_9_cylinder_1</child>
+        <parent>cable_2_segment_8_cylinder_2</parent>
+        <pose relative_to='cable_2_segment_8_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_2_segment_9_cylinder_1'>
+      <pose relative_to='cable_2_segment_9_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_9_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_9_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_2_prismatic_segment_9" type="prismatic">
+        <child>cable_2_segment_9_cylinder_2</child>
+        <parent>cable_2_segment_9_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+      <!-- <sensor name="force_torque" type="force_torque">
+          <update_rate>2000.0</update_rate>
+          <always_on>true</always_on>
+          <visualize>true</visualize>
+      </sensor> -->
+      
+    </joint>
+
+
+    <link name='cable_2_segment_9_cylinder_2'>
+      <pose relative_to='cable_2_segment_9_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_2_segment_9_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_2_segment_9_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+
+    <!-- End JOINT to connect cable and paload -->
+    <joint name="cable_2_endjoint" type="universal">
+        <child>payload</child>
+        <parent>cable_2_segment_9_cylinder_2</parent>
+        <pose relative_to='cable_2_segment_9_cylinder_2'>
+        0.0 0.0 -0.07500000000000001 0.0 0.0 0.0
+        </pose>
+        <axis>
+          <xyz>1 0 0</xyz>
+        </axis>
+        <axis2>
+          <xyz>0 1 0</xyz>
+        </axis2>
+        <!-- <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics> -->
+    </joint>
+    
+    <!-- 根据绳子数量平均初始化不同base_link的坐标 -->
+    <joint name='cable_3_fixed_to_world' type='fixed'>
+      <pose relative_to='__model__'>
+      -1.1071067811865474 
+      2.0337221638416516e-16 
+      2.0 
+      0
+      0 
+      4.71238898038469
+      </pose>
+      <parent>world</parent>
+      <child>cable_3_base_link</child>
+    </joint>
+
+    <link name='cable_3_base_link'>
+      <pose relative_to='cable_3_fixed_to_world'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+        <inertia>
+          <ixx>0.01</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.01</iyy>
+          <iyz>0</iyz>
+          <izz>0.01</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_base_link_collision'>
+        <geometry>
+          <box>
+            <size>0.08 0.08 0.04</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_base_link_visual'>
+        <geometry>
+          <box>
+            <size>0.08 0.08 0.04</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/BlackTransparent</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+    </link>
+
+    <!-- Generate the first segment LINKED TO base_link -->
+    <joint name="cable_3_segment_0_UNIVERSAL" type="universal">
+        <child>cable_3_segment_0_cylinder_1</child>
+        <parent>cable_3_base_link</parent>
+        <pose relative_to='cable_3_base_link'>
+        0 0 -0.02 0.7853981633974483 0 0</pose>
+        <!-- 增加绳子的偏转角 -->
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_3_segment_0_cylinder_1'>
+      <pose relative_to='cable_3_segment_0_UNIVERSAL'>0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_0_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_0_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_3_prismatic_segment_0" type="prismatic">
+        <child>cable_3_segment_0_cylinder_2</child>
+        <parent>cable_3_segment_0_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+    </joint>
+
+
+    <link name='cable_3_segment_0_cylinder_2'>
+      <pose relative_to='cable_3_segment_0_UNIVERSAL'>0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_0_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_0_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_3_segment_1_UNIVERSAL" type="universal">
+        <child>cable_3_segment_1_cylinder_1</child>
+        <parent>cable_3_segment_0_cylinder_2</parent>
+        <pose relative_to='cable_3_segment_0_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_3_segment_1_cylinder_1'>
+      <pose relative_to='cable_3_segment_1_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_1_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_1_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_3_prismatic_segment_1" type="prismatic">
+        <child>cable_3_segment_1_cylinder_2</child>
+        <parent>cable_3_segment_1_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_3_segment_1_cylinder_2'>
+      <pose relative_to='cable_3_segment_1_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_1_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_1_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_3_segment_2_UNIVERSAL" type="universal">
+        <child>cable_3_segment_2_cylinder_1</child>
+        <parent>cable_3_segment_1_cylinder_2</parent>
+        <pose relative_to='cable_3_segment_1_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_3_segment_2_cylinder_1'>
+      <pose relative_to='cable_3_segment_2_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_2_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_2_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_3_prismatic_segment_2" type="prismatic">
+        <child>cable_3_segment_2_cylinder_2</child>
+        <parent>cable_3_segment_2_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_3_segment_2_cylinder_2'>
+      <pose relative_to='cable_3_segment_2_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_2_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_2_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_3_segment_3_UNIVERSAL" type="universal">
+        <child>cable_3_segment_3_cylinder_1</child>
+        <parent>cable_3_segment_2_cylinder_2</parent>
+        <pose relative_to='cable_3_segment_2_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_3_segment_3_cylinder_1'>
+      <pose relative_to='cable_3_segment_3_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_3_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_3_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_3_prismatic_segment_3" type="prismatic">
+        <child>cable_3_segment_3_cylinder_2</child>
+        <parent>cable_3_segment_3_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_3_segment_3_cylinder_2'>
+      <pose relative_to='cable_3_segment_3_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_3_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_3_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_3_segment_4_UNIVERSAL" type="universal">
+        <child>cable_3_segment_4_cylinder_1</child>
+        <parent>cable_3_segment_3_cylinder_2</parent>
+        <pose relative_to='cable_3_segment_3_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_3_segment_4_cylinder_1'>
+      <pose relative_to='cable_3_segment_4_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_4_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_4_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_3_prismatic_segment_4" type="prismatic">
+        <child>cable_3_segment_4_cylinder_2</child>
+        <parent>cable_3_segment_4_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_3_segment_4_cylinder_2'>
+      <pose relative_to='cable_3_segment_4_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_4_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_4_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_3_segment_5_UNIVERSAL" type="universal">
+        <child>cable_3_segment_5_cylinder_1</child>
+        <parent>cable_3_segment_4_cylinder_2</parent>
+        <pose relative_to='cable_3_segment_4_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_3_segment_5_cylinder_1'>
+      <pose relative_to='cable_3_segment_5_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_5_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_5_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_3_prismatic_segment_5" type="prismatic">
+        <child>cable_3_segment_5_cylinder_2</child>
+        <parent>cable_3_segment_5_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_3_segment_5_cylinder_2'>
+      <pose relative_to='cable_3_segment_5_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_5_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_5_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_3_segment_6_UNIVERSAL" type="universal">
+        <child>cable_3_segment_6_cylinder_1</child>
+        <parent>cable_3_segment_5_cylinder_2</parent>
+        <pose relative_to='cable_3_segment_5_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_3_segment_6_cylinder_1'>
+      <pose relative_to='cable_3_segment_6_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_6_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_6_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_3_prismatic_segment_6" type="prismatic">
+        <child>cable_3_segment_6_cylinder_2</child>
+        <parent>cable_3_segment_6_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_3_segment_6_cylinder_2'>
+      <pose relative_to='cable_3_segment_6_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_6_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_6_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_3_segment_7_UNIVERSAL" type="universal">
+        <child>cable_3_segment_7_cylinder_1</child>
+        <parent>cable_3_segment_6_cylinder_2</parent>
+        <pose relative_to='cable_3_segment_6_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_3_segment_7_cylinder_1'>
+      <pose relative_to='cable_3_segment_7_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_7_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_7_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_3_prismatic_segment_7" type="prismatic">
+        <child>cable_3_segment_7_cylinder_2</child>
+        <parent>cable_3_segment_7_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_3_segment_7_cylinder_2'>
+      <pose relative_to='cable_3_segment_7_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_7_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_7_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_3_segment_8_UNIVERSAL" type="universal">
+        <child>cable_3_segment_8_cylinder_1</child>
+        <parent>cable_3_segment_7_cylinder_2</parent>
+        <pose relative_to='cable_3_segment_7_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_3_segment_8_cylinder_1'>
+      <pose relative_to='cable_3_segment_8_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_8_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_8_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_3_prismatic_segment_8" type="prismatic">
+        <child>cable_3_segment_8_cylinder_2</child>
+        <parent>cable_3_segment_8_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_3_segment_8_cylinder_2'>
+      <pose relative_to='cable_3_segment_8_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_8_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_8_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_3_segment_9_UNIVERSAL" type="universal">
+        <child>cable_3_segment_9_cylinder_1</child>
+        <parent>cable_3_segment_8_cylinder_2</parent>
+        <pose relative_to='cable_3_segment_8_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_3_segment_9_cylinder_1'>
+      <pose relative_to='cable_3_segment_9_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_9_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_9_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_3_prismatic_segment_9" type="prismatic">
+        <child>cable_3_segment_9_cylinder_2</child>
+        <parent>cable_3_segment_9_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+      <!-- <sensor name="force_torque" type="force_torque">
+          <update_rate>2000.0</update_rate>
+          <always_on>true</always_on>
+          <visualize>true</visualize>
+      </sensor> -->
+      
+    </joint>
+
+
+    <link name='cable_3_segment_9_cylinder_2'>
+      <pose relative_to='cable_3_segment_9_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_3_segment_9_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_3_segment_9_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+
+    <!-- End JOINT to connect cable and paload -->
+    <joint name="cable_3_endjoint" type="universal">
+        <child>payload</child>
+        <parent>cable_3_segment_9_cylinder_2</parent>
+        <pose relative_to='cable_3_segment_9_cylinder_2'>
+        0.0 0.0 -0.07500000000000001 0.0 0.0 0.0
+        </pose>
+        <axis>
+          <xyz>1 0 0</xyz>
+        </axis>
+        <axis2>
+          <xyz>0 1 0</xyz>
+        </axis2>
+        <!-- <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics> -->
+    </joint>
+    
+    <!-- 根据绳子数量平均初始化不同base_link的坐标 -->
+    <joint name='cable_4_fixed_to_world' type='fixed'>
+      <pose relative_to='__model__'>
+      -2.711629551788869e-16 
+      -1.1071067811865474 
+      2.0 
+      0
+      0 
+      6.283185307179586
+      </pose>
+      <parent>world</parent>
+      <child>cable_4_base_link</child>
+    </joint>
+
+    <link name='cable_4_base_link'>
+      <pose relative_to='cable_4_fixed_to_world'>0 0 0 0 -0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+        <inertia>
+          <ixx>0.01</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.01</iyy>
+          <iyz>0</iyz>
+          <izz>0.01</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_base_link_collision'>
+        <geometry>
+          <box>
+            <size>0.08 0.08 0.04</size>
+          </box>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_base_link_visual'>
+        <geometry>
+          <box>
+            <size>0.08 0.08 0.04</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/BlackTransparent</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+    </link>
+
+    <!-- Generate the first segment LINKED TO base_link -->
+    <joint name="cable_4_segment_0_UNIVERSAL" type="universal">
+        <child>cable_4_segment_0_cylinder_1</child>
+        <parent>cable_4_base_link</parent>
+        <pose relative_to='cable_4_base_link'>
+        0 0 -0.02 0.7853981633974483 0 0</pose>
+        <!-- 增加绳子的偏转角 -->
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_4_segment_0_cylinder_1'>
+      <pose relative_to='cable_4_segment_0_UNIVERSAL'>0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_0_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_0_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_4_prismatic_segment_0" type="prismatic">
+        <child>cable_4_segment_0_cylinder_2</child>
+        <parent>cable_4_segment_0_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+    </joint>
+
+
+    <link name='cable_4_segment_0_cylinder_2'>
+      <pose relative_to='cable_4_segment_0_UNIVERSAL'>0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_0_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_0_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_4_segment_1_UNIVERSAL" type="universal">
+        <child>cable_4_segment_1_cylinder_1</child>
+        <parent>cable_4_segment_0_cylinder_2</parent>
+        <pose relative_to='cable_4_segment_0_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_4_segment_1_cylinder_1'>
+      <pose relative_to='cable_4_segment_1_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_1_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_1_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_4_prismatic_segment_1" type="prismatic">
+        <child>cable_4_segment_1_cylinder_2</child>
+        <parent>cable_4_segment_1_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_4_segment_1_cylinder_2'>
+      <pose relative_to='cable_4_segment_1_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_1_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_1_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_4_segment_2_UNIVERSAL" type="universal">
+        <child>cable_4_segment_2_cylinder_1</child>
+        <parent>cable_4_segment_1_cylinder_2</parent>
+        <pose relative_to='cable_4_segment_1_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_4_segment_2_cylinder_1'>
+      <pose relative_to='cable_4_segment_2_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_2_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_2_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_4_prismatic_segment_2" type="prismatic">
+        <child>cable_4_segment_2_cylinder_2</child>
+        <parent>cable_4_segment_2_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_4_segment_2_cylinder_2'>
+      <pose relative_to='cable_4_segment_2_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_2_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_2_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_4_segment_3_UNIVERSAL" type="universal">
+        <child>cable_4_segment_3_cylinder_1</child>
+        <parent>cable_4_segment_2_cylinder_2</parent>
+        <pose relative_to='cable_4_segment_2_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_4_segment_3_cylinder_1'>
+      <pose relative_to='cable_4_segment_3_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_3_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_3_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_4_prismatic_segment_3" type="prismatic">
+        <child>cable_4_segment_3_cylinder_2</child>
+        <parent>cable_4_segment_3_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_4_segment_3_cylinder_2'>
+      <pose relative_to='cable_4_segment_3_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_3_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_3_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_4_segment_4_UNIVERSAL" type="universal">
+        <child>cable_4_segment_4_cylinder_1</child>
+        <parent>cable_4_segment_3_cylinder_2</parent>
+        <pose relative_to='cable_4_segment_3_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_4_segment_4_cylinder_1'>
+      <pose relative_to='cable_4_segment_4_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_4_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_4_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_4_prismatic_segment_4" type="prismatic">
+        <child>cable_4_segment_4_cylinder_2</child>
+        <parent>cable_4_segment_4_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_4_segment_4_cylinder_2'>
+      <pose relative_to='cable_4_segment_4_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_4_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_4_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_4_segment_5_UNIVERSAL" type="universal">
+        <child>cable_4_segment_5_cylinder_1</child>
+        <parent>cable_4_segment_4_cylinder_2</parent>
+        <pose relative_to='cable_4_segment_4_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_4_segment_5_cylinder_1'>
+      <pose relative_to='cable_4_segment_5_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_5_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_5_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_4_prismatic_segment_5" type="prismatic">
+        <child>cable_4_segment_5_cylinder_2</child>
+        <parent>cable_4_segment_5_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_4_segment_5_cylinder_2'>
+      <pose relative_to='cable_4_segment_5_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_5_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_5_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_4_segment_6_UNIVERSAL" type="universal">
+        <child>cable_4_segment_6_cylinder_1</child>
+        <parent>cable_4_segment_5_cylinder_2</parent>
+        <pose relative_to='cable_4_segment_5_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_4_segment_6_cylinder_1'>
+      <pose relative_to='cable_4_segment_6_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_6_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_6_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_4_prismatic_segment_6" type="prismatic">
+        <child>cable_4_segment_6_cylinder_2</child>
+        <parent>cable_4_segment_6_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_4_segment_6_cylinder_2'>
+      <pose relative_to='cable_4_segment_6_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_6_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_6_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_4_segment_7_UNIVERSAL" type="universal">
+        <child>cable_4_segment_7_cylinder_1</child>
+        <parent>cable_4_segment_6_cylinder_2</parent>
+        <pose relative_to='cable_4_segment_6_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_4_segment_7_cylinder_1'>
+      <pose relative_to='cable_4_segment_7_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_7_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_7_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_4_prismatic_segment_7" type="prismatic">
+        <child>cable_4_segment_7_cylinder_2</child>
+        <parent>cable_4_segment_7_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_4_segment_7_cylinder_2'>
+      <pose relative_to='cable_4_segment_7_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_7_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_7_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_4_segment_8_UNIVERSAL" type="universal">
+        <child>cable_4_segment_8_cylinder_1</child>
+        <parent>cable_4_segment_7_cylinder_2</parent>
+        <pose relative_to='cable_4_segment_7_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_4_segment_8_cylinder_1'>
+      <pose relative_to='cable_4_segment_8_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_8_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_8_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_4_prismatic_segment_8" type="prismatic">
+        <child>cable_4_segment_8_cylinder_2</child>
+        <parent>cable_4_segment_8_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+    </joint>
+
+
+    <link name='cable_4_segment_8_cylinder_2'>
+      <pose relative_to='cable_4_segment_8_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_8_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_8_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+    <!-- No limit set for universal joint-->
+    <joint name="cable_4_segment_9_UNIVERSAL" type="universal">
+        <child>cable_4_segment_9_cylinder_1</child>
+        <parent>cable_4_segment_8_cylinder_2</parent>
+        <pose relative_to='cable_4_segment_8_UNIVERSAL'>0 0 -0.1 0 0 0</pose>
+
+        <axis>
+          <xyz>0 1 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+          <!-- <limit>
+                <dissipation>0.0</dissipation>
+          </limit> -->
+        </axis2>
+    </joint>
+
+
+    <link name='cable_4_segment_9_cylinder_1'>
+      <pose relative_to='cable_4_segment_9_UNIVERSAL'>
+      0 0 -0.025 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_9_cylinder_1_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_9_cylinder_1_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+
+
+    <joint name="cable_4_prismatic_segment_9" type="prismatic">
+        <child>cable_4_segment_9_cylinder_2</child>
+        <parent>cable_4_segment_9_cylinder_1</parent>
+        <pose>0 0 0 0 -0 0</pose>
+
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+                <!-- <dissipation>0.0</dissipation> -->
+                <!-- <upper>0.05</upper>
+                <lower>-0.05</lower> -->
+            </limit>
+            <dynamics>
+              <spring_stiffness>100000.0</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>0.0</damping> 
+              <friction>0.0</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <!-- <cfm>1.0</cfm>
+          <erp>0.01</erp> -->
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+
+      
+      <!-- <sensor name="force_torque" type="force_torque">
+          <update_rate>2000.0</update_rate>
+          <always_on>true</always_on>
+          <visualize>true</visualize>
+      </sensor> -->
+      
+    </joint>
+
+
+    <link name='cable_4_segment_9_cylinder_2'>
+      <pose relative_to='cable_4_segment_9_UNIVERSAL'>
+      0 0 -0.07500000000000001 0 -0 0</pose>
+
+      <inertial>
+        <mass>0.01</mass>
+        <inertia>
+          <ixx>2.1058333333333336e-06</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>2.1058333333333336e-06</iyy>
+          <iyz>0</iyz>
+          <izz>4.5e-08</izz>
+        </inertia>
+      </inertial>
+
+      <collision name='cable_4_segment_9_cylinder_2_collision'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode/>
+          </friction>
+        </surface>
+      </collision>
+
+      <visual name='cable_4_segment_9_cylinder_2_visual'>
+        <geometry>
+          <cylinder>
+            <length>0.05</length>
+            <radius>0.003</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+      <self_collide>0</self_collide>
+      <gravity>1</gravity>
+    </link>
+    
+
+    <!-- End JOINT to connect cable and paload -->
+    <joint name="cable_4_endjoint" type="universal">
+        <child>payload</child>
+        <parent>cable_4_segment_9_cylinder_2</parent>
+        <pose relative_to='cable_4_segment_9_cylinder_2'>
+        0.0 0.0 -0.07500000000000001 0.0 0.0 0.0
+        </pose>
+        <axis>
+          <xyz>1 0 0</xyz>
+        </axis>
+        <axis2>
+          <xyz>0 1 0</xyz>
+        </axis2>
+        <!-- <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics> -->
+    </joint>
+    
+
+    <!-- Payload link as multiple cables' child link -->
+    <link name="payload">
+        <!-- <pose relative_to='endjoint'>0 0 0 0 -0 0 </pose> -->
+        <!-- payload建在原点，与多根绳末端相连 -->
+        <pose>
+        0 0 
+        1.2228932188134523
+        0 -0 0 </pose>
+        <inertial>
+            <pose>0 0 0 0 -0 0</pose>
+            <mass>20</mass>
+            <inertia>
+              <ixx></ixx>
+              <iyy></iyy>
+              <izz>2.1333333333333337</izz>
+            </inertia>
+        </inertial>
+
+        <collision name='payload_collision'>
+          <pose>0 0 0 0 -0 0</pose>
+          <geometry>
+            <box>
+              <size>0.8 0.8 0.1</size>
+            </box>
+          </geometry>
+        </collision>
+
+        <visual name='payload_visual'>
+          <pose>0 0 0 0 -0 0</pose>
+          <geometry>
+            <box>
+              <size>0.8 0.8 0.1</size>
+            </box>
+          </geometry>
+          <material>
+          <script>
+            <name>Gazebo/CeilingTiled</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+        </visual>
+      </link>
+
+    <!-- _body -> vector_segment;
+         _pos  -> vector_cable.-->
+    <plugin name='p3d_base_controller' filename='libgazebo_ros_p3d.so'>
+      <alwaysOn>1</alwaysOn>
+      <updateRate>1000.0</updateRate>
+      <bodyName>cable_1_segment_9_cylinder_2</bodyName>
+      <topicName>end_pos</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <frameName>world</frameName>
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+    </plugin>
+    <plugin name='p3d_base_controller' filename='libgazebo_ros_p3d.so'>
+      <alwaysOn>1</alwaysOn>
+      <updateRate>1000.0</updateRate>
+      <bodyName>cable_1_segment_9_cylinder_2</bodyName>
+      <topicName>end_link</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <!-- 更改为读取体坐标系 -->
+      <!-- <frameName>segment_9_cylinder_2</frameName> -->
+      <frameName>world</frameName>
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+    </plugin>
+
+
+    <plugin name='p3d_base_controller' filename='libgazebo_ros_p3d.so'>
+      <alwaysOn>1</alwaysOn>
+      <updateRate>1000.0</updateRate>
+      <bodyName>cable_1_segment_0_cylinder_1</bodyName>
+      <topicName>start_pos</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <frameName>world</frameName>
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+    </plugin>
+    <plugin name='p3d_base_controller' filename='libgazebo_ros_p3d.so'>
+      <alwaysOn>1</alwaysOn>
+      <updateRate>1000.0</updateRate>
+      <bodyName>cable_1_segment_9_cylinder_1</bodyName>
+      <topicName>start_link</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <!-- 更改为读取体坐标系 -->
+      <!-- <frameName>segment_9_cylinder_1</frameName> -->
+      <frameName>world</frameName>
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+    </plugin>
+
+    <!-- sensor读vel_relative -->
+    <plugin name='p3d_base_controller' filename='libgazebo_ros_p3d.so'>
+      <alwaysOn>1</alwaysOn>
+      <updateRate>1000.0</updateRate>
+      <bodyName>cable_1_segment_9_cylinder_2</bodyName>
+      <topicName>vel_rel</topicName>
+      <gaussianNoise>0.0</gaussianNoise>
+      <!-- 更改为相对坐标系 -->
+      <frameName>cable_1_segment_9_cylinder_1</frameName>
+      <!-- <frameName>world</frameName> -->
+      <xyzOffsets>0 0 0</xyzOffsets>
+      <rpyOffsets>0 0 0</rpyOffsets>
+    </plugin>
+
+    <!-- sensor获取力，全部都是在世界坐标系下，需要投影到Cable\Segment方向上计算 -->
+    <plugin name='ft_sensor' filename='libgazebo_ros_ft_sensor.so'>
+      <updateRate>1000.0</updateRate>
+      <topicName>cableEnd_ft_sensor</topicName>
+      <jointName>cable_1_endjoint</jointName>
+    </plugin>
+    <!-- prismatic上的合力 -->
+    <plugin name='ft_sensor' filename='libgazebo_ros_ft_sensor.so'>
+      <updateRate>1000.0</updateRate>
+      <topicName>prismatic_ft_sensor</topicName>
+      <jointName>cable_1_prismatic_segment_0</jointName>
+    </plugin>
+    
+    <self_collide>0</self_collide>
+    <static>false</static>
+  </model>
+  
+</sdf>

@@ -1,0 +1,3 @@
+<launch>
+    <node name="multi_uav_takeoff_hover" pkg="multi_uav_control" type="takeoff_hoverv2.py" output="screen"/>
+</launch>

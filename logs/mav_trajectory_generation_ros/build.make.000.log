@@ -1,0 +1,185 @@
+[35m[1mScanning dependencies of target trajectory_msgs_generate_messages_lisp[0m
+[35m[1mScanning dependencies of target sensor_msgs_generate_messages_cpp[0m
+[35m[1mScanning dependencies of target sensor_msgs_generate_messages_py[0m
+[35m[1mScanning dependencies of target sensor_msgs_generate_messages_nodejs[0m
+[35m[1mScanning dependencies of target visualization_msgs_generate_messages_nodejs[0m
+[35m[1mScanning dependencies of target trajectory_msgs_generate_messages_nodejs[0m
+[35m[1mScanning dependencies of target geometry_msgs_generate_messages_py[0m
+[35m[1mScanning dependencies of target nav_msgs_generate_messages_py[0m
+[35m[1mScanning dependencies of target std_msgs_generate_messages_nodejs[0m
+[35m[1mScanning dependencies of target visualization_msgs_generate_messages_lisp[0m
+[35m[1mScanning dependencies of target rosgraph_msgs_generate_messages_eus[0m
+[35m[1mScanning dependencies of target geometry_msgs_generate_messages_cpp[0m
+[35m[1mScanning dependencies of target visualization_msgs_generate_messages_eus[0m
+[35m[1mScanning dependencies of target geometry_msgs_generate_messages_eus[0m
+[35m[1mScanning dependencies of target nav_msgs_generate_messages_cpp[0m
+[35m[1mScanning dependencies of target std_msgs_generate_messages_py[0m
+[  0%] Built target sensor_msgs_generate_messages_cpp
+[  0%] Built target sensor_msgs_generate_messages_py
+[  0%] Built target trajectory_msgs_generate_messages_lisp
+[  0%] Built target sensor_msgs_generate_messages_nodejs
+[  0%] Built target trajectory_msgs_generate_messages_nodejs
+[  0%] Built target visualization_msgs_generate_messages_lisp
+[  0%] Built target nav_msgs_generate_messages_py
+[  0%] Built target std_msgs_generate_messages_nodejs
+[  0%] Built target geometry_msgs_generate_messages_py
+[  0%] Built target rosgraph_msgs_generate_messages_eus
+[  0%] Built target visualization_msgs_generate_messages_nodejs
+[  0%] Built target geometry_msgs_generate_messages_cpp
+[  0%] Built target visualization_msgs_generate_messages_eus
+[  0%] Built target nav_msgs_generate_messages_cpp
+[  0%] Built target geometry_msgs_generate_messages_eus
+[  0%] Built target std_msgs_generate_messages_py
+[35m[1mScanning dependencies of target geometry_msgs_generate_messages_lisp[0m
+[35m[1mScanning dependencies of target rosgraph_msgs_generate_messages_py[0m
+[35m[1mScanning dependencies of target roscpp_generate_messages_lisp[0m
+[35m[1mScanning dependencies of target mav_planning_msgs_generate_messages_cpp[0m
+[35m[1mScanning dependencies of target rosgraph_msgs_generate_messages_lisp[0m
+[35m[1mScanning dependencies of target actionlib_msgs_generate_messages_eus[0m
+[35m[1mScanning dependencies of target mav_msgs_generate_messages_lisp[0m
+[35m[1mScanning dependencies of target mav_planning_msgs_generate_messages_lisp[0m
+[35m[1mScanning dependencies of target std_msgs_generate_messages_cpp[0m
+[35m[1mScanning dependencies of target nav_msgs_generate_messages_eus[0m
+[35m[1mScanning dependencies of target mav_msgs_generate_messages_eus[0m
+[35m[1mScanning dependencies of target mav_msgs_generate_messages_cpp[0m
+[35m[1mScanning dependencies of target geometry_msgs_generate_messages_nodejs[0m
+[35m[1mScanning dependencies of target std_msgs_generate_messages_lisp[0m
+[  0%] Built target geometry_msgs_generate_messages_lisp
+[35m[1mScanning dependencies of target mav_msgs_generate_messages_nodejs[0m
+[  0%] Built target roscpp_generate_messages_lisp
+[  0%] Built target mav_planning_msgs_generate_messages_cpp
+[  0%] Built target actionlib_msgs_generate_messages_eus
+[35m[1mScanning dependencies of target roscpp_generate_messages_cpp[0m
+[  0%] Built target rosgraph_msgs_generate_messages_lisp
+[  0%] Built target rosgraph_msgs_generate_messages_py
+[  0%] Built target mav_msgs_generate_messages_lisp
+[  0%] Built target mav_planning_msgs_generate_messages_lisp
+[  0%] Built target std_msgs_generate_messages_cpp
+[  0%] Built target mav_msgs_generate_messages_eus
+[  0%] Built target geometry_msgs_generate_messages_nodejs
+[  0%] Built target nav_msgs_generate_messages_eus
+[  0%] Built target mav_msgs_generate_messages_cpp
+[35m[1mScanning dependencies of target mav_msgs_generate_messages_py[0m
+[  0%] Built target std_msgs_generate_messages_lisp
+[  0%] Built target mav_msgs_generate_messages_nodejs
+[35m[1mScanning dependencies of target std_msgs_generate_messages_eus[0m
+[35m[1mScanning dependencies of target trajectory_msgs_generate_messages_cpp[0m
+[  0%] Built target roscpp_generate_messages_cpp
+[35m[1mScanning dependencies of target actionlib_msgs_generate_messages_cpp[0m
+[35m[1mScanning dependencies of target nav_msgs_generate_messages_lisp[0m
+[35m[1mScanning dependencies of target mav_planning_msgs_generate_messages_nodejs[0m
+[35m[1mScanning dependencies of target actionlib_msgs_generate_messages_nodejs[0m
+[35m[1mScanning dependencies of target actionlib_msgs_generate_messages_py[0m
+[35m[1mScanning dependencies of target rosgraph_msgs_generate_messages_nodejs[0m
+[35m[1mScanning dependencies of target actionlib_msgs_generate_messages_lisp[0m
+[35m[1mScanning dependencies of target roscpp_generate_messages_eus[0m
+[35m[1mScanning dependencies of target roscpp_generate_messages_nodejs[0m
+[  0%] Built target std_msgs_generate_messages_eus
+[  0%] Built target trajectory_msgs_generate_messages_cpp
+[  0%] Built target mav_msgs_generate_messages_py
+[35m[1mScanning dependencies of target trajectory_msgs_generate_messages_eus[0m
+[35m[1mScanning dependencies of target roscpp_generate_messages_py[0m
+[  0%] Built target actionlib_msgs_generate_messages_py
+[  0%] Built target nav_msgs_generate_messages_lisp
+[  0%] Built target actionlib_msgs_generate_messages_cpp
+[  0%] Built target actionlib_msgs_generate_messages_nodejs
+[  0%] Built target actionlib_msgs_generate_messages_lisp
+[  0%] Built target mav_planning_msgs_generate_messages_nodejs
+[  0%] Built target rosgraph_msgs_generate_messages_nodejs
+[  0%] Built target roscpp_generate_messages_eus
+[  0%] Built target roscpp_generate_messages_nodejs
+[35m[1mScanning dependencies of target trajectory_msgs_generate_messages_py[0m
+[  0%] Built target trajectory_msgs_generate_messages_eus
+[35m[1mScanning dependencies of target rosgraph_msgs_generate_messages_cpp[0m
+[35m[1mScanning dependencies of target sensor_msgs_generate_messages_lisp[0m
+[35m[1mScanning dependencies of target visualization_msgs_generate_messages_py[0m
+[  0%] Built target roscpp_generate_messages_py
+[35m[1mScanning dependencies of target sensor_msgs_generate_messages_eus[0m
+[35m[1mScanning dependencies of target visualization_msgs_generate_messages_cpp[0m
+[  0%] Built target trajectory_msgs_generate_messages_py
+[35m[1mScanning dependencies of target mav_planning_msgs_generate_messages_py[0m
+[35m[1mScanning dependencies of target mav_planning_msgs_generate_messages_eus[0m
+[35m[1mScanning dependencies of target nav_msgs_generate_messages_nodejs[0m
+[  0%] Built target rosgraph_msgs_generate_messages_cpp
+[  0%] Built target sensor_msgs_generate_messages_lisp
+[  0%] Built target visualization_msgs_generate_messages_py
+[  0%] Built target visualization_msgs_generate_messages_cpp
+[  0%] Built target mav_planning_msgs_generate_messages_eus
+[  0%] Built target nav_msgs_generate_messages_nodejs
+[  0%] Built target mav_planning_msgs_generate_messages_py
+[  0%] Built target sensor_msgs_generate_messages_eus
+[35m[1mScanning dependencies of target mav_trajectory_generation_ros[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/mav_trajectory_generation_ros.dir/src/feasibility_base.cpp.o[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/mav_trajectory_generation_ros.dir/src/feasibility_recursive.cpp.o[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/mav_trajectory_generation_ros.dir/src/feasibility_analytic.cpp.o[0m
+[ 33%] [32mBuilding CXX object CMakeFiles/mav_trajectory_generation_ros.dir/src/input_constraints.cpp.o[0m
+[ 41%] [32mBuilding CXX object CMakeFiles/mav_trajectory_generation_ros.dir/src/ros_conversions.cpp.o[0m
+[ 50%] [32mBuilding CXX object CMakeFiles/mav_trajectory_generation_ros.dir/src/feasibility_sampling.cpp.o[0m
+[ 58%] [32mBuilding CXX object CMakeFiles/mav_trajectory_generation_ros.dir/src/ros_visualization.cpp.o[0m
+[ 66%] [32m[1mLinking CXX shared library /home/carlson/ros/multi_cable/devel/lib/libmav_trajectory_generation_ros.so[0m
+[ 66%] Built target mav_trajectory_generation_ros
+[35m[1mScanning dependencies of target trajectory_sampler_node[0m
+[35m[1mScanning dependencies of target time_evaluation_node[0m
+[ 75%] [32mBuilding CXX object CMakeFiles/trajectory_sampler_node.dir/src/trajectory_sampler_node.cpp.o[0m
+[ 83%] [32mBuilding CXX object CMakeFiles/time_evaluation_node.dir/src/time_evaluation_node.cpp.o[0m
+In file included from [01m[K/opt/ros/noetic/include/ros/ros.h:40[m[K,
+                 from [01m[K/home/carlson/ros/multi_cable/src/mav_trajectory_generation/mav_trajectory_generation/mav_trajectory_generation_ros/src/time_evaluation_node.cpp:1[m[K:
+[01m[K/home/carlson/ros/multi_cable/src/mav_trajectory_generation/mav_trajectory_generation/mav_trajectory_generation_ros/src/time_evaluation_node.cpp:[m[K In member function ‘[01m[Kbool mav_trajectory_generation::TimeEvaluationNode::computeMinMaxMagnitudeAllSegments(const Vector&, int, const std::vector<int>&, std::vector<mav_trajectory_generation::Extremum>*) const[m[K’:
+[01m[K/home/carlson/ros/multi_cable/src/mav_trajectory_generation/mav_trajectory_generation/mav_trajectory_generation_ros/src/time_evaluation_node.cpp:727:16:[m[K [01;35m[Kwarning: [m[Kformat ‘[01m[K%d[m[K’ expects argument of type ‘[01m[Kint[m[K’, but argument 8 has type ‘[01m[Ksize_t[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;35m[K-Wformat=[m[K]
+  727 |       ROS_WARN([01;35m[K"Failed to get candidates for segment: %d"[m[K, [32m[Ksegment_idx[m[K);
+      |                [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K  [32m[K~~~~~~~~~~~[m[K
+      |                                                            [32m[K|[m[K
+      |                                                            [32m[Ksize_t {aka long unsigned int}[m[K
+[01m[K/opt/ros/noetic/include/ros/console.h:351:165:[m[K [01;36m[Knote: [m[Kin definition of macro ‘[01m[KROSCONSOLE_PRINT_AT_LOCATION_WITH_FILTER[m[K’
+  351 |     ::ros::console::print(filter, __rosconsole_define_location__loc.logger_, __rosconsole_define_location__loc.level_, __FILE__, __LINE__, __ROSCONSOLE_FUNCTION__, [01;36m[K__VA_ARGS__[m[K)
+      |                                                                                                                                                                     [01;36m[K^~~~~~~~~~~[m[K
+[01m[K/opt/ros/noetic/include/ros/console.h:390:7:[m[K [01;36m[Knote: [m[Kin expansion of macro ‘[01m[KROSCONSOLE_PRINT_AT_LOCATION[m[K’
+  390 |       [01;36m[KROSCONSOLE_PRINT_AT_LOCATION[m[K(__VA_ARGS__); \
+      |       [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/noetic/include/ros/console.h:575:35:[m[K [01;36m[Knote: [m[Kin expansion of macro ‘[01m[KROS_LOG_COND[m[K’
+  575 | #define ROS_LOG(level, name, ...) [01;36m[KROS_LOG_COND[m[K(true, level, name, __VA_ARGS__)
+      |                                   [01;36m[K^~~~~~~~~~~~[m[K
+[01m[K/opt/ros/noetic/include/rosconsole/macros_generated.h:162:23:[m[K [01;36m[Knote: [m[Kin expansion of macro ‘[01m[KROS_LOG[m[K’
+  162 | #define ROS_WARN(...) [01;36m[KROS_LOG[m[K(::ros::console::levels::Warn, ROSCONSOLE_DEFAULT_NAME, __VA_ARGS__)
+      |                       [01;36m[K^~~~~~~[m[K
+[01m[K/home/carlson/ros/multi_cable/src/mav_trajectory_generation/mav_trajectory_generation/mav_trajectory_generation_ros/src/time_evaluation_node.cpp:727:7:[m[K [01;36m[Knote: [m[Kin expansion of macro ‘[01m[KROS_WARN[m[K’
+  727 |       [01;36m[KROS_WARN[m[K("Failed to get candidates for segment: %d", segment_idx);
+      |       [01;36m[K^~~~~~~~[m[K
+[01m[K/home/carlson/ros/multi_cable/src/mav_trajectory_generation/mav_trajectory_generation/mav_trajectory_generation_ros/src/time_evaluation_node.cpp:727:56:[m[K [01;36m[Knote: [m[Kformat string is defined here
+  727 |       ROS_WARN("Failed to get candidates for segment: [01;36m[K%d[m[K", segment_idx);
+      |                                                       [01;36m[K~^[m[K
+      |                                                        [01;36m[K|[m[K
+      |                                                        [01;36m[Kint[m[K
+      |                                                       [32m[K%ld[m[K
+In file included from [01m[K/opt/ros/noetic/include/ros/ros.h:40[m[K,
+                 from [01m[K/home/carlson/ros/multi_cable/src/mav_trajectory_generation/mav_trajectory_generation/mav_trajectory_generation_ros/src/time_evaluation_node.cpp:1[m[K:
+[01m[K/home/carlson/ros/multi_cable/src/mav_trajectory_generation/mav_trajectory_generation/mav_trajectory_generation_ros/src/time_evaluation_node.cpp:735:16:[m[K [01;35m[Kwarning: [m[Kformat ‘[01m[K%d[m[K’ expects argument of type ‘[01m[Kint[m[K’, but argument 8 has type ‘[01m[Ksize_t[m[K’ {aka ‘[01m[Klong unsigned int[m[K’} [[01;35m[K-Wformat=[m[K]
+  735 |       ROS_WARN([01;35m[K"Failed select min/max for segment: %d"[m[K, [32m[Ksegment_idx[m[K);
+      |                [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K  [32m[K~~~~~~~~~~~[m[K
+      |                                                         [32m[K|[m[K
+      |                                                         [32m[Ksize_t {aka long unsigned int}[m[K
+[01m[K/opt/ros/noetic/include/ros/console.h:351:165:[m[K [01;36m[Knote: [m[Kin definition of macro ‘[01m[KROSCONSOLE_PRINT_AT_LOCATION_WITH_FILTER[m[K’
+  351 |     ::ros::console::print(filter, __rosconsole_define_location__loc.logger_, __rosconsole_define_location__loc.level_, __FILE__, __LINE__, __ROSCONSOLE_FUNCTION__, [01;36m[K__VA_ARGS__[m[K)
+      |                                                                                                                                                                     [01;36m[K^~~~~~~~~~~[m[K
+[01m[K/opt/ros/noetic/include/ros/console.h:390:7:[m[K [01;36m[Knote: [m[Kin expansion of macro ‘[01m[KROSCONSOLE_PRINT_AT_LOCATION[m[K’
+  390 |       [01;36m[KROSCONSOLE_PRINT_AT_LOCATION[m[K(__VA_ARGS__); \
+      |       [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+[01m[K/opt/ros/noetic/include/ros/console.h:575:35:[m[K [01;36m[Knote: [m[Kin expansion of macro ‘[01m[KROS_LOG_COND[m[K’
+  575 | #define ROS_LOG(level, name, ...) [01;36m[KROS_LOG_COND[m[K(true, level, name, __VA_ARGS__)
+      |                                   [01;36m[K^~~~~~~~~~~~[m[K
+[01m[K/opt/ros/noetic/include/rosconsole/macros_generated.h:162:23:[m[K [01;36m[Knote: [m[Kin expansion of macro ‘[01m[KROS_LOG[m[K’
+  162 | #define ROS_WARN(...) [01;36m[KROS_LOG[m[K(::ros::console::levels::Warn, ROSCONSOLE_DEFAULT_NAME, __VA_ARGS__)
+      |                       [01;36m[K^~~~~~~[m[K
+[01m[K/home/carlson/ros/multi_cable/src/mav_trajectory_generation/mav_trajectory_generation/mav_trajectory_generation_ros/src/time_evaluation_node.cpp:735:7:[m[K [01;36m[Knote: [m[Kin expansion of macro ‘[01m[KROS_WARN[m[K’
+  735 |       [01;36m[KROS_WARN[m[K("Failed select min/max for segment: %d", segment_idx);
+      |       [01;36m[K^~~~~~~~[m[K
+[01m[K/home/carlson/ros/multi_cable/src/mav_trajectory_generation/mav_trajectory_generation/mav_trajectory_generation_ros/src/time_evaluation_node.cpp:735:53:[m[K [01;36m[Knote: [m[Kformat string is defined here
+  735 |       ROS_WARN("Failed select min/max for segment: [01;36m[K%d[m[K", segment_idx);
+      |                                                    [01;36m[K~^[m[K
+      |                                                     [01;36m[K|[m[K
+      |                                                     [01;36m[Kint[m[K
+      |                                                    [32m[K%ld[m[K
+[ 91%] [32m[1mLinking CXX executable /home/carlson/ros/multi_cable/devel/lib/mav_trajectory_generation_ros/trajectory_sampler_node[0m
+[ 91%] Built target trajectory_sampler_node
+[100%] [32m[1mLinking CXX executable /home/carlson/ros/multi_cable/devel/lib/mav_trajectory_generation_ros/time_evaluation_node[0m
+[100%] Built target time_evaluation_node

@@ -1,0 +1,6 @@
+devel_space: /home/carlson/ros/multi_cable/devel
+install: false
+install_space: /home/carlson/ros/multi_cable/install
+profile: default
+source_space: /home/carlson/ros/multi_cable/src
+workspace: /home/carlson/ros/multi_cable

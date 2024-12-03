@@ -1,0 +1,5 @@
+[35m[1mScanning dependencies of target fake_drone[0m
+[ 33%] [32mBuilding CXX object CMakeFiles/fake_drone.dir/src/fake_drone_node.cpp.o[0m
+[ 66%] [32mBuilding CXX object CMakeFiles/fake_drone.dir/src/fake_drone.cpp.o[0m
+[100%] [32m[1mLinking CXX executable /home/carlson/ros/multi_cable/devel/lib/fake_drone/fake_drone[0m
+[100%] Built target fake_drone

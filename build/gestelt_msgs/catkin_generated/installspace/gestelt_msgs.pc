@@ -1,0 +1,8 @@
+prefix=/home/carlson/ros/multi_cable/install
+
+Name: gestelt_msgs
+Description: Description of gestelt_msgs
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib 
+Requires: std_msgs geometry_msgs message_runtime

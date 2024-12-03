@@ -1,0 +1,16 @@
+[35m[1mScanning dependencies of target damping_node[0m
+[35m[1mScanning dependencies of target link_connector[0m
+[35m[1mScanning dependencies of target distance_calculator_sdf_node[0m
+[ 12%] [32mBuilding CXX object CMakeFiles/damping_node.dir/src/damping_tester.cpp.o[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/distance_calculator_sdf_node.dir/src/distance_calculator_sdf.cpp.o[0m
+[35m[1mScanning dependencies of target distance_calculator_node[0m
+[ 37%] [32mBuilding CXX object CMakeFiles/distance_calculator_node.dir/src/distance_calculator.cpp.o[0m
+[ 50%] [32mBuilding CXX object CMakeFiles/link_connector.dir/src/link_connector.cc.o[0m
+[ 62%] [32m[1mLinking CXX executable /home/carlson/ros/multi_cable/devel/lib/multi_cable/damping_node[0m
+[ 75%] [32m[1mLinking CXX executable /home/carlson/ros/multi_cable/devel/lib/multi_cable/distance_calculator_sdf_node[0m
+[ 87%] [32m[1mLinking CXX executable /home/carlson/ros/multi_cable/devel/lib/multi_cable/distance_calculator_node[0m
+[ 87%] Built target damping_node
+[ 87%] Built target distance_calculator_sdf_node
+[ 87%] Built target distance_calculator_node
+[100%] [32m[1mLinking CXX shared library /home/carlson/ros/multi_cable/devel/lib/liblink_connector.so[0m
+[100%] Built target link_connector

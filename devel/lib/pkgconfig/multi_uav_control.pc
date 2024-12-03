@@ -1,0 +1,8 @@
+prefix=/home/carlson/ros/multi_cable/devel
+
+Name: multi_uav_control
+Description: Description of multi_uav_control
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

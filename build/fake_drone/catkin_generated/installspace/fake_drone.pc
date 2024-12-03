@@ -1,0 +1,8 @@
+prefix=/home/carlson/ros/multi_cable/install
+
+Name: fake_drone
+Description: Description of fake_drone
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib 
+Requires: 

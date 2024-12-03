@@ -1,0 +1,35 @@
+<launch>
+  <!-- 启动 Gazebo 空世界 -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find gazebo_ros)/worlds/empty.world"/>
+  </include>
+
+  <!-- 加载无人机模型到 Gazebo -->
+  <node name="spawn_drone" pkg="gazebo_ros" type="spawn_model" output="screen"
+      args="-file $(find multi_cable)/urdf/drone.urdf.xacro -urdf -model my_drone"/>
+
+
+  <!-- 使用仿真时间 -->
+  <param name="use_sim_time" value="true"/>
+
+  <!-- 在 /my_drone 命名空间中加载 robot_description 参数 -->
+  <!-- <group ns="/my_drone">
+    <param name="robot_description" textfile="$(find multi_cable)/sdf/drone.sdf"/>
+  </group> -->
+  <param name="robot_description" value="" />
+
+
+  <!-- 加载控制器参数 -->
+  <rosparam file="$(find multi_cable)/config/controllers.yaml" command="load"/>
+
+  <!-- 启动控制器管理器并加载控制器 -->
+<node name="controller_manager_spawner" pkg="controller_manager" type="spawner"
+      respawn="false" output="screen"
+      ns="/my_drone"
+      args="joint_state_controller rotor_0_joint_controller rotor_1_joint_controller rotor_2_joint_controller rotor_3_joint_controller"/>
+
+
+
+  <!-- 启动 PID 控制器节点 -->
+  <node name="drone_gao_controller" pkg="multi_cable" type="controller.py" output="screen"/>
+</launch>

@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- 原有的参数 -->
+  <arg name="paused" default="true"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="extra_gazebo_args" default=""/>
+  <arg name="gui" default="true"/>
+  <arg name="recording" default="true"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+  <arg name="physics" default="ode"/> <!-- 确保物理引擎类型为 ODE -->
+  <arg name="verbose" default="false"/>
+  <arg name="output" default="screen"/>
+  <!-- 修改 world_name 参数，指向新的世界文件 -->
+  <arg name="world_name" default="$(find multi_cable)/worlds/physics_ode.world"/>
+  <arg name="respawn_gazebo" default="false"/>
+  <arg name="use_clock_frequency" default="false"/>
+  <arg name="pub_clock_frequency" default="100"/>
+  <arg name="enable_ros_network" default="true" />
+  <arg name="server_required" default="false"/>
+  <arg name="gui_required" default="false"/>
+
+  <!-- 设置 use_sim_time 标志 -->
+  <param name="/use_sim_time" value="$(arg use_sim_time)"/>
+
+  <!-- 设置命令参数 -->
+  <arg unless="$(arg paused)" name="command_arg1" value=""/>
+  <arg     if="$(arg paused)" name="command_arg1" value="-u"/>
+  <arg unless="$(arg recording)" name="command_arg2" value=""/>
+  <arg     if="$(arg recording)" name="command_arg2" value="-r"/>
+  <arg unless="$(arg verbose)" name="command_arg3" value=""/>
+  <arg     if="$(arg verbose)" name="command_arg3" value="--verbose"/>
+  <arg unless="$(arg debug)" name="script_type" value="gzserver"/>
+  <arg     if="$(arg debug)" name="script_type" value="debug"/>
+
+  <!-- <arg name="px4" default="~/ros2/PX4-Autopilot" /> -->
+  <!-- <param name="robot_description" type="string" value=" " /> -->
+
+  <!-- 启动 robot_state_publisher -->
+  <!-- <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" output="screen" /> -->
+
+
+  <!-- 启动 Gazebo 服务器 -->
+  <group if="$(arg use_clock_frequency)">
+    <param name="gazebo/pub_clock_frequency" value="$(arg pub_clock_frequency)" />
+  </group>
+  <group>
+    <param name="gazebo/enable_ros_network" value="$(arg enable_ros_network)" />
+  </group>
+  <node name="gazebo" pkg="gazebo_ros" type="$(arg script_type)" respawn="$(arg respawn_gazebo)" output="$(arg output)"
+    args="$(arg command_arg1) $(arg command_arg2) $(arg command_arg3) -e $(arg physics) $(arg extra_gazebo_args) $(arg world_name)"
+    required="$(arg server_required)" />
+
+  <!-- 启动 Gazebo 客户端 -->
+  <group if="$(arg gui)">
+    <node name="gazebo_gui" pkg="gazebo_ros" type="gzclient" respawn="false" output="$(arg output)" args="$(arg command_arg3)"
+      required="$(arg gui_required)"/>
+  </group>
+
+  <!-- 如果需要，可以在这里加载模型 -->
+  <!-- 如果模型已经在世界文件中加载，可以移除以下节点 -->
+  <node name="spawn_model" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+    args="-file $(find multi_cable)/sdf/cable_Mul_new.sdf -sdf -model cable"/>
+
+  <!-- <node name="drone" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+    args="-file $(find multi_cable)/sdf/drone.sdf -sdf -model drone"/> -->
+
+  <!-- 启动其他节点 -->
+  <!-- <node name="damping_tester" pkg="multi_cable" type="damping_node" output="screen" />  -->
+
+  <!-- <node pkg="mavros" type="mavros_node" name="mavros" output="screen">
+    <param name="fcu_url" value="udp://:14540@127.0.0.1:14557" />
+  </node> -->
+
+  <!-- <node name="px4" pkg="px4" type="px4" output="screen" cwd="node">
+      <rosparam command="load" file="$(find px4)/launch/posix-configs/SITL/init/ekf2/iris.launch" />
+  </node> -->
+
+
+  <!-- 启动控制节点 -->
+  <!-- <node pkg="multi_cable" type="offboard_control.py" name="offboard_control" output="screen"/> -->
+
+  <!-- <rosparam file="$(find multi_cable)/config/controller.yaml" command="load"/>
+
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+        output="screen" args="rotor_0_joint_controller rotor_1_joint_controller rotor_2_joint_controller rotor_3_joint_controller"/>
+
+  <node pkg="multi_cable" type="PID_controller.py" name="PID_controller" output="screen"/> -->
+  <!-- 加载无人机模型到 Gazebo -->
+  <node name="spawn_drone" pkg="gazebo_ros" type="spawn_model" output="screen"
+        args="-file $(find multi_cable)/sdf/drone.sdf -sdf -model my_drone"/>
+
+  <!-- 加载控制器参数 -->
+  <rosparam file="$(find multi_cable)/config/controllers.yaml" command="load"/>
+
+  <!-- 启动控制器管理器并加载控制器 -->
+  <node name="controller_manager_spawner" pkg="controller_manager" type="spawner"
+      respawn="false" output="screen"
+      ns="/my_drone"
+      args="joint_state_controller rotor_0_joint_controller rotor_1_joint_controller rotor_2_joint_controller rotor_3_joint_controller"/>
+
+  <!-- 启动 PID 控制器节点 -->
+  <node name="drone_controller" pkg="multi_cable" type="controller.py" output="screen"/>
+
+</launch>

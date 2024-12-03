@@ -1,0 +1,34 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+    <!-- 定义物理引擎参数 -->
+    <physics name="default_physics" type="ode">
+      <max_step_size>0.001</max_step_size> <!-- 与您的launch文件保持一致 -->
+      <real_time_update_rate>1000</real_time_update_rate> <!-- 与您的launch文件保持一致 -->
+      <gravity>0 0 -9.81</gravity>
+      <ode>
+        <solver>
+          <type>quick</type> <!-- 设置求解器类型 -->
+          <iters>100</iters> <!-- 迭代次数 -->
+          <sor>1.00</sor> <!-- SOR 松弛因子 -->
+        </solver>
+        <constraints>
+          <cfm>0.0</cfm> <!-- 约束力混合参数 -->
+          <erp>0.2</erp> <!-- 误差减少参数 -->
+          <thread_position_correction>1</thread_position_correction>
+        </constraints>
+      </ode>
+    </physics>
+
+    <!-- 加载地面平面 -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    
+    <!-- 其他世界配置 -->
+  </world>
+</sdf>

@@ -1,0 +1,258 @@
+<?xml version="1.0" ?>
+<sdf version='1.7'>
+  <!-- Model starting from payload as the parent -->
+  <model name='flexible_cable'>
+
+    <!-- Define your constants and properties here -->
+    {% set blue_color = "0 0 0.8 1" %}
+    {% set red_color = "1 0 0 1" %}
+    {% set gray_color = "0.5 0.5 0.5 1" %}
+
+    <!-- Calculations for inertia -->
+    {% set inertia_factor_xy = (1.0/12.0) * segment_mass * (3 * rope_radius**2 + segment_length**2) %}
+    {% set inertia_factor_z = (1.0/2.0) * segment_mass * rope_radius**2 %}
+
+    {% set inertia_load_xy = (1.0/12.0) * payload_mass * (3 * payload_radius**2 + payload_height**2) %}
+    {% set inertia_load_z = (1.0/12.0) * payload_mass * payload_radius**2 %}
+
+    <!-- Payload initial position -->
+    {% set payload_initial_z_position = 0.0 %}
+
+    <!-- Elasticity Params -->
+    {% set cfm = (stepsize * stiffness) / (stepsize * stiffness + damping) %}
+    {% set erp = 1.0 / (stepsize * stiffness + damping) %}
+
+    <!-- Payload link as the parent link -->
+    <link name="payload">
+      <pose>
+        0 0 {{ height }} 0 0 0
+      </pose>
+      <inertial>
+        <mass>{{ payload_mass }}</mass>
+        <inertia>
+          <ixx>{{ inertia_load_xy }}</ixx>
+          <iyy>{{ inertia_load_xy }}</iyy>
+          <izz>{{ inertia_load_z }}</izz>
+        </inertia>
+      </inertial>
+      <collision name='payload_collision'>
+        <geometry>
+          <cylinder>
+            <length>{{ payload_height }}</length>
+            <radius>{{ payload_radius }}</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name='payload_visual'>
+        <geometry>
+          <cylinder>
+            <length>{{ payload_height }}</length>
+            <radius>{{ payload_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/CeilingTiled</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+
+    {% for cable in range(cable_count) %}
+    <!-- Calculate attachment point on the payload -->
+    {% set theta = 2 * math.pi * cable / cable_count %}
+    {% set attachment_x = (payload_radius) * math.cos(theta) %}
+    {% set attachment_y = (payload_radius) * math.sin(theta) %}
+    {% set attachment_z = payload_height / 2 %}
+
+    <!-- Joint connecting payload to the first cable segment -->
+    <joint name='cable_{{ cable+1 }}_joint_payload' type='universal'>
+      <pose relative_to="payload">
+        {{ attachment_x }} {{ attachment_y }} {{ attachment_z }}  {{angle}} {{angle}} {{angle}}
+      </pose>
+      <parent>payload</parent>
+      <child>cable_{{ cable+1 }}_segment_0_p</child>
+      <axis>
+          <xyz>0 1 0</xyz>
+        </axis>
+        <axis2>
+          <xyz>1 0 0</xyz>
+        </axis2>
+    </joint>
+
+    <!-- First parent segment connected to the payload -->
+    <link name='cable_{{ cable+1 }}_segment_0_p'>
+      <pose relative_to="cable_{{ cable+1 }}_joint_payload">
+        0 0 {{ segment_length/4 }} 0 0 0
+      </pose>
+      <inertial>
+        <mass>{{ segment_mass }}</mass>
+        <inertia>
+          <ixx>{{ inertia_factor_xy }}</ixx>
+          <iyy>{{ inertia_factor_xy }}</iyy>
+          <izz>{{ inertia_factor_z }}</izz>
+        </inertia>
+      </inertial>
+      <collision name='cable_{{ cable+1 }}_segment_0_p_collision'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name='cable_{{ cable+1 }}_segment_0_p_visual'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+
+    <joint name="cable_{{ cable+1 }}_prismatic_segment_0" type="prismatic">
+        <child>cable_{{ cable+1 }}_segment_0_c</child>
+        <parent>cable_{{ cable+1 }}_segment_0_p</parent>
+        <pose>0 0 {{segment_length/4}} 0 -0 0</pose>
+        <axis>
+            <xyz>0.0 0.0 1.0</xyz>
+            <limit>
+                <effort>-1</effort>
+            </limit>
+            <dynamics>
+              <spring_stiffness>{{stiffness}}</spring_stiffness> 
+              <spring_reference>0.0</spring_reference>
+              <damping>{{damping}}</damping> 
+              <friction>{{friction}}</friction>
+            </dynamics>
+        </axis>
+        <physics>
+        <provide_feedback>1</provide_feedback>
+        <ode>
+          <implicit_spring_damper>1</implicit_spring_damper>
+          <cfm_damping>1</cfm_damping>
+          <limit>
+            <cfm>0</cfm>
+            <erp>0.2</erp>
+          </limit>
+        </ode>
+      </physics>
+    </joint>
+
+    <link name='cable_{{ cable+1 }}_segment_0_c'>
+      <pose relative_to="cable_{{ cable+1 }}_segment_0_p">
+        0 0 {{ segment_length/2 }} 0 0 0
+      </pose>
+      <inertial>
+        <mass>{{ segment_mass }}</mass>
+        <inertia>
+          <ixx>{{ inertia_factor_xy }}</ixx>
+          <iyy>{{ inertia_factor_xy }}</iyy>
+          <izz>{{ inertia_factor_z }}</izz>
+        </inertia>
+      </inertial>
+      <collision name='cable_{{ cable+1 }}_segment_0_p_collision'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name='cable_{{ cable+1 }}_segment_0_p_visual'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+
+    {% for segment in range(1, segment_count-1) %}
+    <!-- Subsequent cable segments -->
+    <link name='cable_{{ cable+1 }}_segment_{{ segment }}'>
+      <pose relative_to="cable_{{ cable+1 }}_segment_{{ segment-1 }}">
+        {{ attachment_x }} {{ attachment_y }} {{ attachment_z + (segment + 0.5) * segment_length }} 0 0 0
+      </pose>
+      <inertial>
+        <mass>{{ segment_mass }}</mass>
+        <inertia>
+          <ixx>{{ inertia_factor_xy }}</ixx>
+          <iyy>{{ inertia_factor_xy }}</iyy>
+          <izz>{{ inertia_factor_z }}</izz>
+        </inertia>
+      </inertial>
+      <collision name='cable_{{ cable+1 }}_segment_{{ segment }}_collision'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+      </collision>
+      <visual name='cable_{{ cable+1 }}_segment_{{ segment }}_visual'>
+        <geometry>
+          <cylinder>
+            <length>{{ segment_length }}</length>
+            <radius>{{ rope_radius }}</radius>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Gold</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+
+    <!-- Joint connecting segments -->
+    <joint name='cable_{{ cable+1 }}_joint_{{ segment }}' type='revolute'>
+      <pose>
+        0 0 {{ segment_length }} 0 0 0
+      </pose>
+      <parent>cable_{{ cable+1 }}_segment_{{ segment - 1 }}</parent>
+      <child>cable_{{ cable+1 }}_segment_{{ segment }}</child>
+      <axis>
+        <xyz>0 1 0</xyz>
+        <limit>
+          <lower>-1.57</lower>
+          <upper>1.57</upper>
+        </limit>
+        <dynamics>
+          <spring_stiffness>{{ stiffness }}</spring_stiffness>
+          <damping>{{ damping }}</damping>
+        </dynamics>
+      </axis>
+    </joint>
+    {% endfor %}
+
+    <!-- Attach the last segment to the world -->
+    <joint name='cable_{{ cable+1 }}_world_joint' type='fixed'>
+      <pose>
+        0 0 {{ segment_length }} 0 0 0
+      </pose>
+      <parent>cable_{{ cable+1 }}_segment_{{ segment_count - 1 }}</parent>
+      <child>world</child>
+    </joint>
+    {% endfor %}
+
+    <!-- Ensure the model is not static -->
+    <!-- <static>false</static> -->
+  </model>
+</sdf>

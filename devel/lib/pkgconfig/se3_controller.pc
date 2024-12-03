@@ -1,0 +1,8 @@
+prefix=/home/carlson/ros/multi_cable/devel
+
+Name: se3_controller
+Description: Description of se3_controller
+Version: 0.0.0
+Cflags: -I/home/carlson/ros/multi_cable/devel/include -I/home/carlson/ros/multi_cable/src/gestelt/se3_controller/include
+Libs: -L${prefix}/lib -lse3_controller
+Requires: roscpp rospy std_msgs mavros_msgs geometry_msgs sensor_msgs tf
