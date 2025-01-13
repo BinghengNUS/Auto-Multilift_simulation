@@ -17,6 +17,9 @@ def Xform "World"
     {
         vector3f physics:gravityDirection = (0, 0, -1)
         float physics:gravityMagnitude = 981
+        uniform uint physxScene:minPositionIterationCount = 200
+        uniform uint physxScene:minVelocityIterationCount = 200
+        uint physxScene:timeStepsPerSecond = 60
     }
 
     ############################################################################
