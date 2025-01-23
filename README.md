@@ -4,7 +4,10 @@ This reop is the simulation of the [Auto-Multilift](https://github.com/RCL-NUS/A
 ## Rope simulation
 
 ### MSD simulation of ropes
-The current simulation of the elastic rope is implemented using multi-rigid-body simulation.The simulation is based on the Mass-Spring-Damper (MSD) model of the rope. The **Mass-Spring-Damper (MSD)** model for simulating ropes treats the rope as a series of connected masses (nodes) linked by springs and dampers. The equations for each mass describe its motion under the influence of forces applied by springs, dampers, and external factors.
+The current simulation of the elastic rope is implemented using multi-rigid-body simulation.The simulation is based on the Mass-Spring-Damper (MSD) model of the rope. The **Mass-Spring-Damper (MSD)** model for simulating ropes treats the rope as a series of connected masses (nodes) linked by springs and dampers. The equations for each mass describe its motion under the influence of forces applied by springs, dampers, and external factors. The simulation uses a [D6 joint](https://docs.nvidia.com/gameworks/content/gameworkslibrary/physx/apireference/files/classPxD6Joint.html) to connect the rigid body links, allowing for customizable degrees of freedom between the links.
+
+
+![Rope Simulation](docs/rope.gif)
 
 
 #### 1. Force Equation for a Single Mass
@@ -52,11 +55,6 @@ The external forces typically include:
 - **Gravity**: $F_{\text{gravity}} = m g$, where $g$ is the acceleration due to gravity.
 - **External constraints**: Such as collisions or interactions with other objects.
 
-
-The simulation uses a [D6 joint](https://docs.nvidia.com/gameworks/content/gameworkslibrary/physx/apireference/files/classPxD6Joint.html) to connect the rigid body links, allowing for customizable degrees of freedom between the links.
-
-
-![Rope Simulation](docs/rope.gif)
 
 ### FEM Simulation of Ropes
 
