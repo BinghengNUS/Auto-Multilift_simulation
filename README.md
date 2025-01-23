@@ -56,7 +56,7 @@ The external forces typically include:
 The simulation uses a [D6 joint](https://docs.nvidia.com/gameworks/content/gameworkslibrary/physx/apireference/files/classPxD6Joint.html) to connect the rigid body links, allowing for customizable degrees of freedom between the links.
 
 
-![video](docs/rope.webm)
+![Rope Simulation](docs/rope.gif)
 
 ### FEM Simulation of Ropes
 
