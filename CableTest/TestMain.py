@@ -12,24 +12,26 @@ from isaacsim import SimulationApp
 
 
 # Frame rates
-real_frame_per_second = 500.0
+real_frame_per_second = 1000.0
 internal_frame_per_second = 60.0
 
 # Path to the USD file
 # usd_path = "./Assets/FEMCable.usd"
 # usd_path = "./Assets/Cable3Kg.usd"
 # usd_path = "./Assets/Cable5Kg.usd"
-usd_path = "./Assets/Cable8Kg.usd"
+usd_path = "/home/carlson/isaac_ws/Feb4-1kg.usd"
 
 # Global flags and references
 is_processing = False
 kit = None
-units_in_meters = 0.01
+units_in_meters = 1
 min_step_index = float('inf')
 initial_pos = None
 start_time = None
 stiffness = None
 mass = None
+initial_pos0 = None
+initial_pos10 = None
 
 def scheduler(signum, frame):
     """
@@ -50,7 +52,7 @@ def step_callback(step_size):
     Callback function for physics updates.
     Logs the payload's position and velocity to a CSV file.
     """
-    global dc, object, csv_writer, world, units_in_meters, min_step_index, initial_pos, start_time, stiffness, mass
+    global dc, object, capsule0, capsule10, csv_writer, world, units_in_meters, min_step_index, initial_pos0, initial_pos10, start_time, stiffness, mass
 
     # Constants
     gravity = 9.81
@@ -60,30 +62,35 @@ def step_callback(step_size):
     current_time = world.current_time
 
     # Get pose and velocity
-    pose = dc.get_rigid_body_pose(object)
-    velocity = dc.get_rigid_body_linear_velocity(object)
+    # pose = dc.get_rigid_body_pose(object)
+    # velocity = dc.get_rigid_body_linear_velocity(object)
+    pose0 = dc.get_rigid_body_pose(capsule0)
+    pose10 = dc.get_rigid_body_pose(capsule10)
 
     # Print information
     print(f"Current payload info @ step {step_index} :\n",
-        f"Position: {pose.p}\n",
-        f"Velocity: {velocity}\n",
-        f"Rotation (quaternion): {pose.r}\n")
+        f"Position0: {pose0.p}\n",
+        f"Position10: {pose10.p}\n",
+        )
     
-    print(f"Current Simulation TIME: {current_time}")
+    # print(f"Current Simulation TIME: {current_time}")
 
     # Record the real-world start time
     # Update the minimum step index and record the real-world start time (Only Once!)
     if step_index < min_step_index:
         min_step_index = step_index
         start_time = time.time()
-        initial_pos = pose.p.z # Initial position of the payload
+        initial_pos0 = pose0.p.z 
+        initial_pos10 = pose10.p.z 
+    
+    initial_length  = initial_pos10 - initial_pos0
 
-    # Calculate and print the real-world elapsed time
+    # # Calculate and print the real-world elapsed time
     elapsed_real_time = time.time() - start_time
-    print(f"Current Real TIME: {elapsed_real_time}\n")
+    # print(f"Current Real TIME: {elapsed_real_time}\n")
 
     # Calculate stiffness based on position
-    stiffness = (gravity * mass) / ((initial_pos - pose.p.z) * units_in_meters)
+    stiffness = (gravity * mass) / (((pose10.p.z - pose0.p.z) - initial_length) * units_in_meters)
 
     if stiffness is not None and mass is not None:
         print(f"Calculated stiffness: {stiffness} N/m\n", 
@@ -94,8 +101,8 @@ def step_callback(step_size):
         step_index,
         current_time,
         elapsed_real_time,
-        pose.p.x, pose.p.y, pose.p.z,
-        velocity.x, velocity.y, velocity.z,
+        pose0.p.z,
+        pose10.p.z,
         stiffness
         ])
 
@@ -104,12 +111,12 @@ def render_callback(event):
     """
     Callback function for rendering updates.
     """
-    print(f"=== Render Frame ===")
+    # print(f"=== Render Frame ===")
     
 
 # Main function and other parts of the script remain unchanged
 def main():
-    global kit, dc, object, csv_writer, world, units_in_meters, mass
+    global kit, dc, object, capsule0, capsule10, csv_writer, world, units_in_meters, mass
 
     # Create the SimulationApp with required arguments
     kit = SimulationApp({"renderer": "RayTracedLighting", "headless": False, "open_usd": usd_path})
@@ -132,39 +139,43 @@ def main():
     # IMPORTANT: Initialize physics after creating the World instance
     world.initialize_physics()
 
-    # For FEM mesh type Cube, set physics solver to TGS and broadphase to GPU
+    # # For FEM mesh type Cube, set physics solver to TGS and broadphase to GPU
     physics_context = world.get_physics_context()
-    physics_context.set_solver_type("TGS")
-    physics_context.set_broadphase_type("GPU")
+    # physics_context.set_solver_type("TGS")
+    # physics_context.set_broadphase_type("GPU")
     physics_context.enable_gpu_dynamics(True)
-    physics_context.enable_stablization(True)
-    physics_context.enable_ccd(False)
-    # Set Solver iteration count
-    PhysxSchema.PhysxSceneAPI.Apply(stage.GetPrimAtPath("/physicsScene"))
-    physxSceneAPI = PhysxSchema.PhysxSceneAPI.Get(stage, "/physicsScene")
-    physxSceneAPI.CreateMinPositionIterationCountAttr(51)
-    physxSceneAPI.CreateMinVelocityIterationCountAttr(50)
+    # physics_context.enable_stablization(True)
+    # physics_context.enable_ccd(False)
+    # # Set Solver iteration count
+    # PhysxSchema.PhysxSceneAPI.Apply(stage.GetPrimAtPath("/physicsScene"))
+    # physxSceneAPI = PhysxSchema.PhysxSceneAPI.Get(stage, "/physicsScene")
+    # physxSceneAPI.CreateMinPositionIterationCountAttr(51)
+    # physxSceneAPI.CreateMinVelocityIterationCountAttr(50)
 
     # Get payload object
-    payload_path = "/vechicle/Payload/payload0"
+    payload_path = "/World/Payload"
+    capsule0_path = "/World/Capsule0"
+    capsule10_path = "/World/Capsule10"
     # For FEM
     # payload_path = "/World/Cube"
 
     # Acquire dynamic control interface
     dc = dc.acquire_dynamic_control_interface()
     object = dc.get_rigid_body(payload_path)
+    capsule0 = dc.get_rigid_body(capsule0_path)
+    capsule10 = dc.get_rigid_body(capsule10_path)
 
     # Acquire prim of payload, to get mass
     prim = RigidPrim(payload_path)
     mass = prim.get_mass()
 
     # Open CSV file for logging
-    csv_file = open(f"./CsvLog/payload_{mass}Kg_log.csv", mode="w", newline="")
+    csv_file = open(f"./Feb4/payload_{mass}Kg_log.csv", mode="w", newline="")
     csv_writer = csv.writer(csv_file)
     csv_writer.writerow(["step",
                         "simulation_time", "real_time",
-                        "px", "py", "pz", 
-                        "vx", "vy", "vz", 
+                        "0z",
+                        "10z",
                         "stiffness"])
 
     # Add callbacks
