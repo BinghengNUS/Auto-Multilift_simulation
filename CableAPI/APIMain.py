@@ -1,17 +1,19 @@
 """
 Developer: Li Yunchao
-Date: 2025-02-06
+Date: 2025-02-07
 Description: 
     This standalone script is the main program for APICable.py, used to launch the model of single or multiple cables.
     
-    Single Rope (Vertical): Set num_ropes=1. 
+    Single Rope (Vertical): Set num_ropes=1. As the baseline.
     The adjusted (physics, D6joints) parameters ensure model stability and high stiffness accuracy for payloads between 1~6Kg. 
     Payloads of 7Kg or higher may cause precision errors of rope stiffness.
     
-    Multiple Ropes (Horizontal): Set num_ropes > 1. 
-    The current parameters do not ensure the stability of multiple ropes and require further adjustments.
+    Multiple Ropes (Elevation angle): Set num_ropes > 1 and customed elevation angle.
+    *Fix the translation axis of the D6Joints, solve the issue of unstable jitter.
+    *Control the elevation angle of the ropes, ease the testing of multiple ropes.
 """
 
+import math
 import sys
 import time
 import signal
@@ -90,18 +92,29 @@ def main():
     stage.SetDefaultPrim(stage.GetPrimAtPath(defaultPrimPath))
 
     # Call the create method with the desired parameters
-    # To test 1 rope in vertical, set num_ropes=1.
-    # num_ropes = 1
+    loadOn1Rope = 6.0
 
-    # To test multiple ropes in horizontal, set num_ropes > 1.
-    num_ropes = 1
+    # To test 1 rope in vertical, set num_ropes = 1.
+    # num_ropes = 1
+    # To test multiple ropes, set num_ropes > 1 and customed elevation angle.
+    num_ropes = 6
     rope_length = 1.0
     load_height = 2.0
+    elevation_angle = math.pi / 3.0
+
+    # Calculate the mass of the payload
+    if elevation_angle != 0.0:
+        calMass = loadOn1Rope / math.sin(elevation_angle) * num_ropes 
+    else:
+        calMass = 48.0
+
     model_instance.create(
         stage, 
         num_ropes=num_ropes, 
         rope_length=rope_length,
-        load_height=load_height
+        payload_mass=calMass,
+        load_height=load_height,
+        elevation_angle=elevation_angle
         )
     
     world.reset()

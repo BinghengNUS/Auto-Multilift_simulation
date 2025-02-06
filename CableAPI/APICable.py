@@ -1,3 +1,52 @@
+""" RigidBodyRopes Class
+    This class is responsible for creating a scene with elastic cable models using the USD (Universal Scene Description) framework. 
+    It supports creating both single and multiple ropes with various configurations.
+    Author: Li Yunchao
+    Date: 2025-02-07
+
+    Methods:
+    --------
+    Scene Creation:
+    ---------------
+    create(stage, num_ropes, rope_length, payload_mass, load_height=2.0, elevation_angle=0.0):
+        Main function to build the scene with the specified number of ropes, rope length, payload mass, load height, and elevation angle.
+    _createCapsule(path: Sdf.Path, axis="Z"):
+        Creates a capsule geometry at the specified path with the given axis.
+    _createPayload():
+        Creates the payload geometry and applies the necessary physics properties.
+    create_box(rootPath, primPath, dimensions, position, color, orientation=Gf.Quatf(1.0), positionMod=None):
+        Creates a box geometry at the specified path with the given dimensions, position, color, and orientation.
+    create_table():
+        Creates a table geometry with the specified dimensions and color.
+
+    Joint Creation:
+    ---------------
+    _createCableJoint(jointPath, axis="Z"):
+        Creates a cable joint with the specified path and axis, applying the necessary physics properties and limits.
+    _createFixJoint(jointPath):
+        Creates a fixed joint with the specified path, locking all degrees of freedom.
+    _createUniJoint(jointPath):
+        Creates a universal joint with the specified path, locking all translational and one rotational degrees of freedom.
+
+    Rope Creation:
+    --------------
+    _createVerticalRopes():
+        Creates a single vertical rope as the baseline template, attaching it to the payload and table.
+    _createMultiRopes(elevation_angle):
+        Creates multiple ropes with the specified elevation angle, attaching them to the payload and individual boxes.
+
+    Helper Functions:
+    -----------------
+    calculate_orientation(angle, axis):
+        Calculates the quaternion representing a rotation around an arbitrary axis.
+    get_path(rootPath, primPath):
+        Constructs and returns the final path by appending the root path and prim path, defining scopes if necessary.
+    orient_dim(vec):
+        Adjusts the dimensions vector based on the stage's orientation and scale factor.
+    orient_pos(vec):
+        Adjusts the position vector based on the stage's orientation, scale factor, and floor offset.
+"""
+
 import math
 from pxr import UsdLux, UsdGeom, Sdf, Gf, UsdPhysics, UsdShade, PhysxSchema, Vt
 import omni.physxdemos as demo
@@ -5,28 +54,16 @@ import omni.physx.bindings._physx as physx_bindings
 
 class RigidBodyRopes(demo.Base):
     title = "Elastic Cable Model"
-    category = demo.Categories.JOINTS
-    description = "Cable Model, modified by Liyc on 20th, Jan"
-
-    kit_settings = {
-        physx_bindings.SETTING_MOUSE_PICKING_FORCE: 10.0,
-        "persistent/app/viewport/displayOptions": demo.get_viewport_minimal_display_options_int(),
-    }
-    
-    params = {
-        "num_ropes": demo.IntParam(3, 1, 100, 1),
-        "rope_length": demo.IntParam(100, 100, 1000, 10)
-    }
 
     ## Main Call Funtion to build the scene ##
-    def create(self, stage, num_ropes, rope_length, load_height=1.0):
+    def create(self, stage, num_ropes, rope_length, payload_mass, load_height=2.0, elevation_angle=0.0):
         self._stage = stage
         self._defaultPrimPath = stage.GetDefaultPrim().GetPath()
         
         ## Payload config:
         self._payloadRadius = 0.24
         self._payloadHight = self._payloadRadius / 4
-        self._payloadMass = 6.0
+        self._payloadMass = payload_mass
         self._payloadColor = [0.22, 0.43, 0.55]
 
         self._initLoadHeight = load_height
@@ -57,14 +94,14 @@ class RigidBodyRopes(demo.Base):
         ############################################################################################################
 
         ## Table / Box Config
-        self._boxSize = 12.0
-
         self._scaleFactor = 1.0 / (UsdGeom.GetStageMetersPerUnit(stage) * 100.0)
+
         self._tableThickness = 6.0
+        self._boxSize = 12.0
         self._tableHeight = self._initLoadHeight + self._payloadHight/2 + rope_length + self._tableThickness*self._scaleFactor
+        
         floorOffset = 0.0
         self._floorOffset = floorOffset - self._tableHeight
-
         self._tableSurfaceDim = Gf.Vec2f(200.0, 100.0)
         self._tableColor = Gf.Vec3f(168.0, 142.0, 119.0) / 255.0
 
@@ -79,14 +116,17 @@ class RigidBodyRopes(demo.Base):
         if self._upAxis == UsdGeom.Tokens.x:
             self._orientation = [2,1,0]
 
-        ## Create the scene
+        ## Create the scene 
+        # Create the common payload
         self._createPayload()
         
         if (num_ropes < 2):
+            # Create a single rope as the baseline template
             self.create_table()
             self._createVerticalRopes()
         else:
-            self._createMultiHorizontalRopes()
+            # Create multiple ropes with a elevation angle
+            self._createMultiRopes(elevation_angle)
             
 
     ## Scene Object Functions ##
@@ -156,9 +196,9 @@ class RigidBodyRopes(demo.Base):
         UsdPhysics.CollisionAPI.Apply(cubePrim)
             
     def create_table(self):
-        # always create table, do not skip if instance exists because it can vary between rooms
         tableDim = Gf.Vec3f(self._tableSurfaceDim[0], self._tableSurfaceDim[1], self._tableHeight)
 
+        # Only create the table top
         self.create_box(
             "Table", "tableTopActor",
             Gf.Vec3f(tableDim[0], tableDim[1], self._tableThickness),
@@ -169,12 +209,26 @@ class RigidBodyRopes(demo.Base):
 
     ## Joint Functions ##
     ## Feb 4th: Setting limits for stiffness & damping, setting maxForce (10 * mass* gravity).
-    def _createCableJoint(self, jointPath):
+    def _createCableJoint(self, jointPath, axis="Z"):
+        rotatedDOFs = ["rotX", "rotY"]
+        if (axis == "Z"):
+            slideDOF = "transZ",
+            lockedDOFs = ["transX", "transY", "rotZ"]
+            rotatedDOFs = ["rotX", "rotY"]
+        elif (axis == "X"):
+            slideDOF = "transX",
+            lockedDOFs = ["transY", "transZ", "rotX"]
+            rotatedDOFs = ["rotY", "rotZ"]
+        else:
+            slideDOF = "transY",
+            lockedDOFs = ["transX", "transZ", "rotY"]
+            rotatedDOFs = ["rotX", "rotZ"]
+
         joint = UsdPhysics.Joint.Define(self._stage, jointPath)
         d6Prim = joint.GetPrim()
 
         # Slided DOF (transZ) with limits:
-        for prim in ["transZ"]:
+        for prim in slideDOF:
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, prim)
             limitAPI.CreateLowAttr(-self._slideLimit)  
             limitAPI.CreateHighAttr(0.0)
@@ -191,13 +245,13 @@ class RigidBodyRopes(demo.Base):
             driveAPI.CreateStiffnessAttr(self._slide_stiffness)
 
         # Locked DOF (lock - low is greater than high) transY/Z and rotX:
-        for axis in ["transY", "transX", "rotZ"]:
+        for axis in lockedDOFs:
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, axis)
             limitAPI.CreateLowAttr(0.0)
             limitAPI.CreateHighAttr(0.0)
 
         # Rotated DOF rotY, rotZ with limits:
-        for d in ["rotX", "rotY"]:
+        for d in rotatedDOFs:
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, d)
             limitAPI.CreateLowAttr(-self._coneAngleLimit)
             limitAPI.CreateHighAttr(self._coneAngleLimit)
@@ -223,15 +277,10 @@ class RigidBodyRopes(demo.Base):
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, axis)
             limitAPI.CreateLowAttr(-self._coneAngleLimit)
             limitAPI.CreateHighAttr(self._coneAngleLimit)
-
-            # driveAPI = UsdPhysics.DriveAPI.Apply(d6Prim, axis)
-            # driveAPI.CreateTypeAttr("force")
-            # driveAPI.CreateStiffnessAttr().Set(self._rope_stiffness)
-            # driveAPI.CreateDampingAttr().Set(self._rope_damping)
    
 
     ## Rope Functions ##
-    # ONE rope along Z
+    # ONE rope along Z, as the baseline to tune the params of physics, D6Joints
     def _createVerticalRopes(self):
         linkLength = self._linkHalfLength + 2 * self._linkRadius
         numLinks = int(self._ropeLength / linkLength)
@@ -372,16 +421,21 @@ class RigidBodyRopes(demo.Base):
             tableAttachInstancer.GetPhysicsLocalRot0sAttr().Set(Vt.QuathArray([Gf.Quath(1.0)]))
             tableAttachInstancer.GetPhysicsLocalRot1sAttr().Set(Vt.QuathArray([Gf.Quath(1.0)]))
 
-    # MULTIPLE ropes along X, with a common payload at the end, each rope fixed to a box
-    def _createMultiHorizontalRopes(self):
+    # MULTIPLE ropes with elevation angle. Connect to a common payload, each rope fixed to a box
+    def _createMultiRopes(self, elevation_angle):
+        translationAxis = "X"
         linkLength = self._linkHalfLength + 2 * self._linkRadius
         numLinks = int(self._ropeLength / linkLength)
 
         payloadHightHalf = self._payloadHight * 0.5
         capsuleHalf = linkLength * 0.5
 
-        # Calculate the angle increment for each rope
+        # Calculate the angle increment for each rope, seperate 2pi into numRopes
         angle_increment = 2 * math.pi / self._numRopes
+
+        # Calculate the elevation angle components
+        cos_elevation = math.cos(elevation_angle)
+        sin_elevation = math.sin(elevation_angle)
 
         # Create each rope from the payload
         for ropeInd in range(self._numRopes):
@@ -392,7 +446,7 @@ class RigidBodyRopes(demo.Base):
             rboInstancer = UsdGeom.PointInstancer.Define(self._stage, instancerPath)
 
             capsulePath = instancerPath.AppendChild("capsule")
-            self._createCapsule(capsulePath, axis="X")
+            self._createCapsule(capsulePath, translationAxis)
 
             meshIndices = []
             positions = []
@@ -400,18 +454,23 @@ class RigidBodyRopes(demo.Base):
 
             # Calculate the position of the END link
             angle = angle_increment * ropeInd
-            xstartPos = (self._payloadRadius + capsuleHalf) * math.cos(angle)
-            ystartPos = (self._payloadRadius + capsuleHalf) * math.sin(angle)
-            # z = self._initLoadHeight + payloadHightHalf
-            z = self._initLoadHeight
-            ## IMPORTANT: The orientation is calculated based on the angle and the axis of rotation (Z) #####
-            orientation = self.calculate_orientation(angle, Gf.Vec3f(0.0, 0.0, 1.0))
+            xstartPos = (self._payloadRadius + capsuleHalf * cos_elevation) * math.cos(angle)
+            ystartPos = (self._payloadRadius + capsuleHalf * cos_elevation) * math.sin(angle)
+            zstartPos = self._initLoadHeight + capsuleHalf * sin_elevation
+            ## IMPORTANT: Calculate the orientation based on the angle and the elevation_angle
+            # The first rotation based on the seperated angle and the axis of rotation (Z), on XY plane #####
+            q_z = self.calculate_orientation(angle, Gf.Vec3f(0.0, 0.0, 1.0))
+            # The second rotation based on the elevation angle and the axis of rotation (Y), on XZ plane #####
+            q_y = self.calculate_orientation(elevation_angle, Gf.Vec3f(0.0, -1.0, 0.0))
+            # The final orientation is the multiplication of the two quaternions
+            orientation = q_z * q_y
 
             # 1) Add rope links (all capsules)
             for linkInd in range(numLinks):
                 meshIndices.append(0)  # capsule
-                x = xstartPos + linkInd * linkLength * math.cos(angle)
-                y = ystartPos + linkInd * linkLength * math.sin(angle)
+                x = xstartPos + linkInd * linkLength * math.cos(angle) * cos_elevation
+                y = ystartPos + linkInd * linkLength * math.sin(angle) * cos_elevation
+                z = zstartPos + linkInd * linkLength * sin_elevation
                 positions.append(Gf.Vec3f(x, y, z))
                 orientations.append(orientation)
 
@@ -428,7 +487,8 @@ class RigidBodyRopes(demo.Base):
             jointInstancer = PhysxSchema.PhysxPhysicsJointInstancer.Define(self._stage, jointInstancerPath)
             
             jointPath = jointInstancerPath.AppendChild("chainJoints")
-            self._createCableJoint(jointPath) 
+            # *Fix the translation axis of the D6Joints*
+            self._createCableJoint(jointPath, translationAxis) 
 
             jointMeshIndices = []
             jointBody0Indices = []
@@ -446,8 +506,6 @@ class RigidBodyRopes(demo.Base):
                 jointBody0Indices.append(body0Index)
                 jointBody1Indices.append(body1Index)
 
-                # jointLocalPos0.append(Gf.Vec3f(capsuleHalf*math.cos(angle), capsuleHalf*math.sin(angle), 0.0))
-                # jointLocalPos1.append(Gf.Vec3f(-capsuleHalf*math.cos(angle), -capsuleHalf*math.sin(angle), 0.0))               
                 jointLocalPos0.append(Gf.Vec3f(capsuleHalf, 0.0, 0.0))
                 jointLocalPos1.append(Gf.Vec3f(-capsuleHalf, 0.0, 0.0))
                 jointLocalRot0.append(Gf.Quath(1.0, 0.0, 0.0, 0.0))
@@ -504,10 +562,13 @@ class RigidBodyRopes(demo.Base):
             # 5) Create universal joint for link–box
             boxPath = scopePath.AppendChild(f"box{ropeInd}Actor")
             
+            # Create a box at the end of the rope, with the same orientation as the rope
             self.create_box(
                 f"Rope{ropeInd}", f"box{ropeInd}Actor", 
                 Gf.Vec3f(self._boxSize, self._boxSize, self._boxSize), 
-                Gf.Vec3f(x + (capsuleHalf + self._boxSize*self._scaleFactor*0.5) * math.cos(angle), y + (capsuleHalf + self._boxSize*self._scaleFactor*0.5) * math.sin(angle), z),
+                Gf.Vec3f(x + (capsuleHalf + self._boxSize*self._scaleFactor*0.5) * math.cos(angle) * cos_elevation, 
+                         y + (capsuleHalf + self._boxSize*self._scaleFactor*0.5) * math.sin(angle) * cos_elevation, 
+                         z + (capsuleHalf + self._boxSize*self._scaleFactor*0.5) * sin_elevation),
                 self._tableColor,
                 orientation=Gf.Quatf(orientation)
                 )
