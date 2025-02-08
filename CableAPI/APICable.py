@@ -89,7 +89,7 @@ class RigidBodyRopes(demo.Base):
         self._slide_damping = 1e3 # damping for Prismatic joint 
 
         ##### IMPORTANT: The LIMITS also influence the TRUE stiffness and damping!!! ###############################
-        self._slide_stiffness_limit = 4.8 * self._slide_stiffness
+        self._slide_stiffness_limit = 11 * self._slide_stiffness
         self._slide_damping_limit = self._slide_damping
         ############################################################################################################
 
@@ -140,11 +140,11 @@ class RigidBodyRopes(demo.Base):
 
         UsdPhysics.RigidBodyAPI.Apply(capsuleGeom.GetPrim())
         physx_rigid_api = PhysxSchema.PhysxRigidBodyAPI.Apply(capsuleGeom.GetPrim())
-        physx_rigid_api.CreateLinearDampingAttr(0.01)
-        physx_rigid_api.CreateCfmScaleAttr(0.2)
+        # physx_rigid_api.CreateLinearDampingAttr(0.01)
+        # physx_rigid_api.CreateCfmScaleAttr(0.2)
 
         massAPI = UsdPhysics.MassAPI.Apply(capsuleGeom.GetPrim())
-        massAPI.CreateMassAttr().Set(0.01)
+        massAPI.CreateMassAttr().Set(0.008)
 
         UsdPhysics.CollisionAPI.Apply(capsuleGeom.GetPrim())
 
@@ -213,16 +213,16 @@ class RigidBodyRopes(demo.Base):
         rotatedDOFs = ["rotX", "rotY"]
         if (axis == "Z"):
             slideDOF = "transZ",
-            lockedDOFs = ["transX", "transY", "rotZ"]
-            rotatedDOFs = ["rotX", "rotY"]
+            lockedDOFs = ["transX", "transY"]
+            rotatedDOFs = ["rotX", "rotY", "rotZ"]
         elif (axis == "X"):
             slideDOF = "transX",
-            lockedDOFs = ["transY", "transZ", "rotX"]
-            rotatedDOFs = ["rotY", "rotZ"]
+            lockedDOFs = ["transY", "transZ"]
+            rotatedDOFs = ["rotY", "rotZ", "rotX"]
         else:
             slideDOF = "transY",
-            lockedDOFs = ["transX", "transZ", "rotY"]
-            rotatedDOFs = ["rotX", "rotZ"]
+            lockedDOFs = ["transX", "transZ"]
+            rotatedDOFs = ["rotX", "rotZ", "rotY"]
 
         joint = UsdPhysics.Joint.Define(self._stage, jointPath)
         d6Prim = joint.GetPrim()
@@ -230,8 +230,9 @@ class RigidBodyRopes(demo.Base):
         # Slided DOF (transZ) with limits:
         for prim in slideDOF:
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, prim)
-            limitAPI.CreateLowAttr(-self._slideLimit)  
-            limitAPI.CreateHighAttr(0.0)
+            # limitAPI.CreateLowAttr(-self._slideLimit)  
+            limitAPI.CreateLowAttr(-1)  
+            limitAPI.CreateHighAttr(0.01) # debug
             
             physx_limit_api = PhysxSchema.PhysxLimitAPI.Apply(d6Prim, prim)
             physx_limit_api.CreateStiffnessAttr(self._slide_stiffness_limit)  
@@ -253,8 +254,8 @@ class RigidBodyRopes(demo.Base):
         # Rotated DOF rotY, rotZ with limits:
         for d in rotatedDOFs:
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, d)
-            limitAPI.CreateLowAttr(-self._coneAngleLimit)
-            limitAPI.CreateHighAttr(self._coneAngleLimit)
+            # limitAPI.CreateLowAttr(-self._coneAngleLimit)
+            # limitAPI.CreateHighAttr(self._coneAngleLimit)
 
     def _createFixJoint(self, jointPath):
         joint = UsdPhysics.Joint.Define(self._stage, jointPath)

@@ -79,8 +79,8 @@ def main():
     PhysxSchema.PhysxSceneAPI.Apply(stage.GetPrimAtPath("/World/physicsScene"))
     physxSceneAPI = PhysxSchema.PhysxSceneAPI.Get(stage, "/World/physicsScene")
     ## IMPORTANT: Set the solver iteration count ##############################
-    physxSceneAPI.CreateMinPositionIterationCountAttr(25) # For 1~6Kg. 7Kg or higher mass got issues 
-    physxSceneAPI.CreateMinVelocityIterationCountAttr(0)
+    # physxSceneAPI.CreateMinPositionIterationCountAttr(25) # For 1~6Kg. 7Kg or higher mass got issues 
+    # physxSceneAPI.CreateMinVelocityIterationCountAttr(0)
     ###########################################################################
     
 
@@ -100,7 +100,7 @@ def main():
     num_ropes = 6
     rope_length = 1.0
     load_height = 2.0
-    elevation_angle = math.pi / 3.0
+    elevation_angle = math.pi / 2.0
 
     # Calculate the mass of the payload
     if elevation_angle != 0.0:
@@ -112,7 +112,7 @@ def main():
         stage, 
         num_ropes=num_ropes, 
         rope_length=rope_length,
-        payload_mass=calMass,
+        payload_mass=6,
         load_height=load_height,
         elevation_angle=elevation_angle
         )
