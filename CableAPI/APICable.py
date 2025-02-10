@@ -73,8 +73,8 @@ class RigidBodyRopes(demo.Base):
         self._payloadPath = self._payloadXform.AppendChild("Payload")
 
         ## Ropes config:
-        self._linkHalfLength = 0.06
-        self._linkRadius = 0.02
+        self._linkHalfLength = 0.08
+        self._linkRadius = 0.01
 
         self._ropeLength = rope_length
         self._numRopes = num_ropes
@@ -83,14 +83,15 @@ class RigidBodyRopes(demo.Base):
 
         self._coneAngleLimit = 160
         self._slideLimit = 0.1
-        self._slideMaxforceLimit = 10.0 * self._payloadMass * 9.81
+        # self._slideMaxforceLimit = 10.0 * self._payloadMass * 9.81
+        self._slideMaxforceLimit = 1000
 
         self._slide_stiffness = 1e5 # stiffness for Prismatic joint 
         self._slide_damping = 1e3 # damping for Prismatic joint 
 
         ##### IMPORTANT: The LIMITS also influence the TRUE stiffness and damping!!! ###############################
-        self._slide_stiffness_limit = 11 * self._slide_stiffness
-        self._slide_damping_limit = self._slide_damping
+        self._slide_stiffness_limit = 4 * self._slide_stiffness
+        self._slide_damping_limit = 3*self._slide_damping
         ############################################################################################################
 
         ## Table / Box Config
@@ -140,7 +141,8 @@ class RigidBodyRopes(demo.Base):
 
         UsdPhysics.RigidBodyAPI.Apply(capsuleGeom.GetPrim())
         physx_rigid_api = PhysxSchema.PhysxRigidBodyAPI.Apply(capsuleGeom.GetPrim())
-        # physx_rigid_api.CreateLinearDampingAttr(0.01)
+        physx_rigid_api.CreateLinearDampingAttr(1)
+        # physx_rigid_api.GetSolverPositionIterationCountAttr(20)
         # physx_rigid_api.CreateCfmScaleAttr(0.2)
 
         massAPI = UsdPhysics.MassAPI.Apply(capsuleGeom.GetPrim())
@@ -231,12 +233,13 @@ class RigidBodyRopes(demo.Base):
         for prim in slideDOF:
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, prim)
             # limitAPI.CreateLowAttr(-self._slideLimit)  
-            limitAPI.CreateLowAttr(-1)  
-            limitAPI.CreateHighAttr(0.01) # debug
+            limitAPI.CreateLowAttr(-0.0001)  
+            limitAPI.CreateHighAttr(0.0001) # debug
             
             physx_limit_api = PhysxSchema.PhysxLimitAPI.Apply(d6Prim, prim)
             physx_limit_api.CreateStiffnessAttr(self._slide_stiffness_limit)  
             physx_limit_api.CreateDampingAttr(self._slide_damping_limit)
+            physx_limit_api.CreateRestitutionAttr(1)
             physx_limit_api.CreateContactDistanceAttr(0.0001)
 
             driveAPI = UsdPhysics.DriveAPI.Apply(d6Prim, prim)
@@ -254,6 +257,8 @@ class RigidBodyRopes(demo.Base):
         # Rotated DOF rotY, rotZ with limits:
         for d in rotatedDOFs:
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, d)
+            physx_limit_api = PhysxSchema.PhysxLimitAPI.Apply(d6Prim, d)
+            physx_limit_api.CreateDampingAttr(0.1)
             # limitAPI.CreateLowAttr(-self._coneAngleLimit)
             # limitAPI.CreateHighAttr(self._coneAngleLimit)
 
@@ -270,14 +275,14 @@ class RigidBodyRopes(demo.Base):
         joint = UsdPhysics.Joint.Define(self._stage, jointPath)
         d6Prim = joint.GetPrim()
         # Lock All 3 tran and 1 rot DOFs:
-        for axis in ["transX", "transY", "transZ", "rotZ"]:
+        for axis in ["transX", "transY", "transZ"]:
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, axis)
             limitAPI.CreateLowAttr(0.0)
             limitAPI.CreateHighAttr(0.0)  
-        for axis in ["rotX", "rotY"]:
+        for axis in ["rotX", "rotY", "rotZ"]:
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, axis)
-            limitAPI.CreateLowAttr(-self._coneAngleLimit)
-            limitAPI.CreateHighAttr(self._coneAngleLimit)
+            # limitAPI.CreateLowAttr(-self._coneAngleLimit)
+            # limitAPI.CreateHighAttr(self._coneAngleLimit)
    
 
     ## Rope Functions ##

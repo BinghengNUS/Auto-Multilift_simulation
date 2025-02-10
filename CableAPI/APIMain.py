@@ -112,7 +112,7 @@ def main():
         stage, 
         num_ropes=num_ropes, 
         rope_length=rope_length,
-        payload_mass=6,
+        payload_mass=3,
         load_height=load_height,
         elevation_angle=elevation_angle
         )
