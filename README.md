@@ -11,7 +11,7 @@ to build the ros2 workspace.
 Run 
 
 ```bash
-ros2 launch px4_offboard offboard_hardware_position_control.launch.py
+ros2 launch px4_offboard offboard_position_control.launch.py
 ```
 
 to run the single iris drone offboard control demo.
