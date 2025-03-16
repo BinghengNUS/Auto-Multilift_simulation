@@ -14,7 +14,8 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + 'visualize.rviz']),
         ('share/' + package_name, ['package.xml']),
-        (os.path.join('share', package_name), glob('launch/*launch.[pxy][yma]*')),
+        (os.path.join('share', package_name),
+         glob('launch/*launch.[pxy][yma]*')),
         (os.path.join('share', package_name), glob('resource/*rviz'))
     ],
     install_requires=['setuptools'],
@@ -28,6 +29,9 @@ setup(
         'console_scripts': [
                 'offboard_control = px4_offboard.offboard_control:main',
                 'visualizer = px4_offboard.visualizer:main',
+
+                'geom_multi = px4_offboard.geom_multi:main',
+                'clock_sync_node = px4_offboard.clock_sync_node:main',
         ],
     },
 )
