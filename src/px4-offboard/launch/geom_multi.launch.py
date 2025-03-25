@@ -50,11 +50,11 @@ def generate_launch_description():
                 parameters=[{
                     'init_timestamp': init_timestamp_us,
                     'drone_idx': idx,
-                    'altitude': 5.0,
-                    'trajectory_type': 'hover'
+                    'altitude': 4.0,
+                    # 'trajectory_type': 'hover'
 
                     # FIXME: Just for single drone, cause collision for multiple drones
-                    # 'trajectory_type': 'circle'
+                    'trajectory_type': 'circle'
                     # 'trajectory_type': 'helix'
                     # 'trajectory_type': 'lemniscate'
                     # 'trajectory_type': 'sinusoid'
@@ -63,14 +63,14 @@ def generate_launch_description():
         )
 
     # RViz node for visualization
-    nodes.append(
-        Node(
-            package='rviz2',
-            namespace='',
-            executable='rviz2',
-            name='rviz2',
-            arguments=['-d', os.path.join(package_dir, 'visualize.rviz')]
-        )
-    )
+    # nodes.append(
+    #     Node(
+    #         package='rviz2',
+    #         namespace='',
+    #         executable='rviz2',
+    #         name='rviz2',
+    #         arguments=['-d', os.path.join(package_dir, 'visualize.rviz')]
+    #     )
+    # )
 
     return LaunchDescription(nodes)
