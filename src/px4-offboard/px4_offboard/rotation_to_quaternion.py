@@ -1,11 +1,12 @@
 import numpy as np
 
+
 def rotation_matrix_to_quaternion(R):
     """
-    通过旋转矩阵 R 计算四元数 [q0, q1, q2, q3]，其中 q0 = w, q1 = x, q2 = y, q3 = z
+    Compute the quaternion [q0, q1, q2, q3] from the rotation matrix R, where q0 = w, q1 = x, q2 = y, q3 = z.
     """
     tr = np.trace(R)
-    
+
     if tr > 0:
         S = np.sqrt(1.0 + tr) * 2  # 4q0
         q0 = 0.25 * S

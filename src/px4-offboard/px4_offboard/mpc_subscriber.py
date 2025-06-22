@@ -3,6 +3,7 @@ from rclpy.node import Node
 import numpy as np
 from mpc_msgs.msg import BroadcastMPC
 
+
 class DistributedMPCSubscriber(Node):
     def __init__(self):
         super().__init__('distributed_mpc_subscriber')
@@ -11,7 +12,7 @@ class DistributedMPCSubscriber(Node):
             'distributed_mpc',
             self.listener_callback,
             10)
-        self.subscription  # 防止未使用的变量警告
+        self.subscription  # prevent unused variable warning
         self.flag = 0
 
     def recover_traj_list(self, flat_data: list, n_traj: int, traj_shape: tuple) -> list:
@@ -27,11 +28,11 @@ class DistributedMPCSubscriber(Node):
         single_len = traj_shape[0] * traj_shape[1]
         flat_np = np.array(flat_data, dtype=np.float32)
         traj_list = [
-            flat_np[i * single_len : (i + 1) * single_len].reshape(traj_shape)
+            flat_np[i * single_len: (i + 1) * single_len].reshape(traj_shape)
             for i in range(n_traj)
         ]
         return traj_list
-    
+
     def listener_callback(self, msg):
         self.get_logger().info('Received DistributedMPC message')
 
@@ -57,7 +58,7 @@ class DistributedMPCSubscriber(Node):
         self.get_logger().info(f'MPC_TRAJ: {mpc_traj}')
         self.get_logger().info(f'Time Trajectory: {time_traj}')
         self.get_logger().info(f'REC_TEMP: {rec_temp}')
-        
+
         if self.flag == 0:
             self.get_logger().info(f'XQ Trajectory: {xq_traj[0]}')
             self.flag = 1
@@ -65,12 +66,14 @@ class DistributedMPCSubscriber(Node):
         # self.get_logger().info(f'XL Trajectory Shape: {xl_traj.shape}')
         # self.get_logger().info(f'UL Trajectory Shape: {ul_traj.shape}')
 
+
 def main(args=None):
     rclpy.init(args=args)
     distributed_mpc_subscriber = DistributedMPCSubscriber()
     rclpy.spin(distributed_mpc_subscriber)
     distributed_mpc_subscriber.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
