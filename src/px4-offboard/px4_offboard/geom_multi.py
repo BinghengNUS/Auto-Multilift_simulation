@@ -2,6 +2,7 @@ from px4_offboard.matrix_utils import hat, vee, deriv_unit_vector, saturate
 from px4_offboard.rotation_to_quaternion import rotation_matrix_to_quaternion
 
 import numpy as np
+import math
 
 import rclpy
 from rclpy.node import Node
@@ -50,11 +51,21 @@ class MultiGeomNode(Node):
         self.drone_idx = self.get_parameter('drone_idx').value
         self.prefix = '' if self.drone_idx == 0 else f'/px4_{self.drone_idx}'
 
+        self.declare_parameter('num_drones', 3)
+        self.num_drones = self.get_parameter('num_drones').value
+
+        self.declare_parameter('load_radius', 1.0)
+        self.load_radius = self.get_parameter('load_radius').value
+
+        self.declare_parameter('cable_length', 2.0)
+        self.cable_length = self.get_parameter('cable_length').value
+
         self.declare_parameter('altitude', 6.0)
         self.altitude = self.get_parameter('altitude').value
 
         self.declare_parameter('trajectory_type', 'hover')
         self.trajectory_type = self.get_parameter('trajectory_type').value
+
 
         ## Initialize variables ##
         # flag to record initial offset of each drone for later trajectory generation
@@ -257,10 +268,13 @@ class MultiGeomNode(Node):
         elif self.current_state == self.ST_TRAJECTORY:
             if (self.offboard_count - self.traj_start_count) >= 3e3:
                 self.get_logger().info("----- Stopping trajectory -----")
-                self.timer_offboard.cancel()
+                self.selfdefine_traj_timer.cancel()
                 self.current_state = self.ST_DONE
 
         elif self.current_state == self.ST_DONE:
+            # NOTE leave geom_ctrl_timer to publish command and maintain
+            self.get_logger().info("----- Finished -----")
+            self.timer_offboard.cancel()
             pass
 
         self.offboard_count += 1
@@ -293,10 +307,15 @@ class MultiGeomNode(Node):
         y_init = self.y_offset
         x_final = self.x_offset / 3.0
         y_final = self.y_offset / 3.0
+        # if self.drone_idx == 0:
+            # self.get_logger().info(f"Drone_{self.drone_idx} - offset: {self.x_offset:.2f}, {self.y_offset:.2f}")
+            # self.get_logger().info(f"Drone_{self.drone_idx} - takeoff: {x_init:.2f}, {y_init:.2f} -> {x_final:.2f}, {y_final:.2f}")
         if dt_s < self.takeoff_time:
             alpha = dt_s / self.takeoff_time
             self.xd[0] = x_init + alpha * (x_final - x_init)
             self.xd[1] = y_init + alpha * (y_final - y_init)
+            # if self.drone_idx == 0:
+                # self.get_logger().info(f"Drone_{self.drone_idx} - takeoff: {self.xd[0]:.2f}, {self.xd[1]:.2f}")
             self.xd_dot[0] = (x_final - x_init) / self.takeoff_time
             self.xd_dot[1] = (y_final - y_init) / self.takeoff_time
             self.xd_2dot[0] = self.xd_2dot[1] = 0.0
@@ -334,18 +353,32 @@ class MultiGeomNode(Node):
             offset_x = self.x_start[0] - circle_radius * np.cos(0)
             offset_y = self.x_start[1] - circle_radius * np.sin(0)
 
-            # Position and its derivatives
-            self.xd[0] = circle_radius * np.cos(theta) + offset_x
-            self.xd_dot[0] = -circle_radius * circle_W * np.sin(theta)
-            self.xd_2dot[0] = -circle_radius * (circle_W**2) * np.cos(theta)
-            self.xd_3dot[0] = circle_radius * (circle_W**3) * np.sin(theta)
-            self.xd_4dot[0] = circle_radius * (circle_W**4) * np.cos(theta)
+            # TODO: 每架飞机都根据自己的offset画自己的圆, 注意self.x在NED坐标系下, 但是之前给的是期望ENU. 圆轨迹, 不影响但是有问题!
+            # Align with NED frame
+            self.xd[1] = circle_radius * np.cos(theta) + offset_x
+            self.xd_dot[1] = -circle_radius * circle_W * np.sin(theta)
+            self.xd_2dot[1] = -circle_radius * (circle_W**2) * np.cos(theta)
+            self.xd_3dot[1] = circle_radius * (circle_W**3) * np.sin(theta)
+            self.xd_4dot[1] = circle_radius * (circle_W**4) * np.cos(theta)
 
-            self.xd[1] = circle_radius * np.sin(theta) + offset_y
-            self.xd_dot[1] = circle_radius * circle_W * np.cos(theta)
-            self.xd_2dot[1] = -circle_radius * (circle_W**2) * np.sin(theta)
-            self.xd_3dot[1] = -circle_radius * (circle_W**3) * np.cos(theta)
-            self.xd_4dot[1] = circle_radius * (circle_W**4) * np.sin(theta)
+            self.xd[0] = circle_radius * np.sin(theta) + offset_y
+            self.xd_dot[0] = circle_radius * circle_W * np.cos(theta)
+            self.xd_2dot[0] = -circle_radius * (circle_W**2) * np.sin(theta)
+            self.xd_3dot[0] = -circle_radius * (circle_W**3) * np.cos(theta)
+            self.xd_4dot[0] = circle_radius * (circle_W**4) * np.sin(theta)
+
+            # Position and its derivatives (x, y, z) ENU!!
+            # self.xd[0] = circle_radius * np.cos(theta) + offset_x
+            # self.xd_dot[0] = -circle_radius * circle_W * np.sin(theta)
+            # self.xd_2dot[0] = -circle_radius * (circle_W**2) * np.cos(theta)
+            # self.xd_3dot[0] = circle_radius * (circle_W**3) * np.sin(theta)
+            # self.xd_4dot[0] = circle_radius * (circle_W**4) * np.cos(theta)
+
+            # self.xd[1] = circle_radius * np.sin(theta) + offset_y
+            # self.xd_dot[1] = circle_radius * circle_W * np.cos(theta)
+            # self.xd_2dot[1] = -circle_radius * (circle_W**2) * np.sin(theta)
+            # self.xd_3dot[1] = -circle_radius * (circle_W**3) * np.cos(theta)
+            # self.xd_4dot[1] = circle_radius * (circle_W**4) * np.sin(theta)
 
             self.xd[2] = - self.altitude
             self.xd_dot[2] = 0.0
@@ -524,6 +557,7 @@ class MultiGeomNode(Node):
         # Position and velocity errors
         eX = x - xd
         eV = v - xd_dot
+        # self.get_logger().info(f"Drone_{self.drone_idx} - eX: {eX}, eV: {eV}")
 
         A = - kX @ eX - kV @ eV - m*g*e3 + m*xd_2dot
         hatW = hat(W)
@@ -591,6 +625,10 @@ class MultiGeomNode(Node):
         norm_thrust = max(0.0, min(norm_thrust, 1.0))
         msg.thrust_body = [0.0, 0.0, -norm_thrust]
 
+        # if self.drone_idx == 0:
+        #     self.get_logger().info(f"Drone_{self.drone_idx} - f_total: {f_total:.2f}, thrust: {norm_thrust:.2f}, "
+        #                         f"quaternion: {msg.q_d} ")
+
         msg.timestamp = self.timestamp_us
 
         self.publisher_vehicle_attitude_setpoint.publish(msg)
@@ -626,11 +664,45 @@ class MultiGeomNode(Node):
         self.timestamp_us = msg.data
 
     def vehicle_odometry_callback(self, msg: VehicleOdometry):
-        for i in range(3):
-            if not self.xy_offset_flag:
-                self.x_offset = msg.position[i]
-                self.y_offset = msg.position[i]
+        # # NOTE NED (North-East-Down) earth-fixed frame, relative to the home position!!
+        # # Judge pose frame
+        # if msg.pose_frame == VehicleOdometry.POSE_FRAME_NED:
+        #     pose_frame_str = "NED (North-East-Down) earth-fixed frame"
+        # elif msg.pose_frame == VehicleOdometry.POSE_FRAME_FRD:
+        #     pose_frame_str = "FRD (Forward-Right-Down) world-fixed frame"
+        # else:
+        #     pose_frame_str = "Unknown pose frame"
+
+        # # Judge velocity frame
+        # if msg.velocity_frame == VehicleOdometry.VELOCITY_FRAME_NED:
+        #     velocity_frame_str = "NED (North-East-Down) earth-fixed frame"
+        # elif msg.velocity_frame == VehicleOdometry.VELOCITY_FRAME_FRD:
+        #     velocity_frame_str = "FRD (Forward-Right-Down) world-fixed frame"
+        # elif msg.velocity_frame == VehicleOdometry.VELOCITY_FRAME_BODY_FRD:
+        #     velocity_frame_str = "FRD (Forward-Right-Down) body-fixed frame"
+        # else:
+        #     velocity_frame_str = "Unknown velocity frame"
+         # Add reference frame offset in world ENU
+
+        # angle_increment = 2 * math.pi / int(self.num_drones)
+        # angle = angle_increment * self.drone_idx
+        # ref_translation = np.array([
+        #     (self.load_radius + self.cable_length + 0.005) * math.cos(angle),
+        #     (self.load_radius + self.cable_length + 0.005) * math.sin(angle),
+        #     0.1
+        # ])  # This is already ENU world frame offset
+
+        # if not self.xy_offset_flag:
+        #         self.x_offset = msg.position[1] + ref_translation[0]
+        #         self.y_offset = msg.position[0] + ref_translation[1]
+        #         self.xy_offset_flag = True
+
+        if not self.xy_offset_flag:
+                self.x_offset = msg.position[1] 
+                self.y_offset = msg.position[0]
                 self.xy_offset_flag = True
+
+        for i in range(3):
             self.last_z = self.x[2]
             self.x[i] = msg.position[i]
             self.v[i] = msg.velocity[i]
@@ -641,6 +713,9 @@ class MultiGeomNode(Node):
             [2*(q1*q2 + q0*q3),     1 - 2*(q1**2 + q3**2), 2*(q2*q3 - q0*q1)],
             [2*(q1*q3 - q0*q2),     2*(q2*q3 + q0*q1),     1 - 2*(q1**2 + q2**2)]
         ])
+        # self.get_logger().info(f"Drone_{self.drone_idx} - "
+        #                        f"Position: {self.x}, Velocity: {self.v}, Quaternion: {msg.q}, ")
+        # self.get_logger().info(f"Pose Frame: {pose_frame_str}, Velocity Frame: {velocity_frame_str}")
 
     def vehicle_local_position_callback(self, msg: VehicleLocalPosition):
         self.a[0] = msg.ax

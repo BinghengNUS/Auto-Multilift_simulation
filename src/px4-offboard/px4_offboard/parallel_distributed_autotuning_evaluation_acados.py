@@ -1,0 +1,1157 @@
+"""
+This is the main function that tests the distributed MPC control and autotuning for multi-lifting systems.
+----------------------------------------------------------------------------
+Wang, Bingheng at Control and Simulation Lab, ECE Dept. NUS, Singapore
+1st version: 16 Feb,2024
+2nd version: 13 Mar,2024
+3rd version: 19 April, 2024
+------------------------Reference------------------------------
+[4] Tao, R., Cheng, S., Wang, X., Wang, S. and Hovakimyan, N., 2023.
+    "DiffTune-MPC: Closed-loop Learning for Model Predictive Control"
+    arXiv preprint arXiv:2312.11384 (2023).
+"""
+import Dynamics
+import NeuralNet
+import Robust_Flight_MPC_acados
+from casadi import *
+import numpy as np
+from numpy import linalg as LA
+import matplotlib.pyplot as plt
+import os
+import math
+import torch
+import time as TM
+import importlib.util
+import ament_index_python
+from sklearn.metrics import root_mean_squared_error
+from scipy.spatial.transform import Rotation as Rot
+from joblib import Parallel, delayed
+from multiprocessing import Process, Array, Manager, shared_memory
+
+
+print("========================================")
+print("Main code for training or evaluating Distributed Autotuning Multilifting Controller")
+print("PLease choose ctrlmode")
+ctrlmode = input("enter 's' or 'p' without the quotation mark:") # s: sequential, p: parallel
+print("========================================")
+
+mode = 'cl_'+str(ctrlmode)
+# # Get the package share directory
+# package_share_directory = ament_index_python.get_package_share_directory('px4_offboard')
+# # XXX Registe the NeuralNet Class as model to load the nn_load.pt
+# neuralnet_path = os.path.join(package_share_directory, "NeuralNet.py")
+# spec = importlib.util.spec_from_file_location("NeuralNet", neuralnet_path)
+# neuralnet_module = importlib.util.module_from_spec(spec)
+# sys.modules["NeuralNet"] = neuralnet_module
+# spec.loader.exec_module(neuralnet_module)
+
+
+"""--------------------------------------Load environment---------------------------------------"""
+uav_para     = np.array([1.5, 0.02912, 0.02912, 0.05522, 6.0, 0.2]) # L quadrotors XXX
+load_para    = np.array([7.5, 1.0]) # 2.5 kg for 3 quadrotors, 7.5 kg for 6 quadrotors
+cable_para   = np.array([1e9,8e-6,1e-2,2]) # E=1 Gpa, A=7mm^2 (pi*1.5^2), c=10, L0=2, Nylon-HD, [5], np.array([5e3, 1e-2, 2])
+Jl           = 0.5*np.array([[2, 2, 2.5]]).T # payload's moment of inertia, 0.5*Jl for 3 quadrotors, Jl for 6 quadrotors
+rg           = np.array([[0.1, 0.1, -0.1]]).T # coordinate of the payload's CoM in {Bl}
+dt_sample    = 5e-3 # used in the 'step' function for simulating the environment
+dt_ctrl      = 2e-2 # for control, 50Hz
+ratio        = int(dt_ctrl/dt_sample)
+stm          = Dynamics.multilifting(uav_para, load_para, cable_para, dt_ctrl)
+stm.model()
+horizon      = 8 # MPC's horizon
+horizon_loss = 20 # horizon of the high-level loss for training, which can be longer than the MPC's horizon
+nxl          = stm.nxl # dimension of the payload's state
+nxi          = stm.nxi # dimension of the quadrotor's state
+nui          = stm.nui # dimension of the quadrotor's control 
+nul          = stm.nul # dimension of the payload's control which is equal to the number of quadrotors
+nwsi         = 12 # dimension of the quadrotor state weightings
+nwsl         = 12 # dimension of the payload state weightings
+# learning rate
+lr_nn        = 1e-4
+lr_lp        = 1e-8
+
+"""--------------------------------------Define neural network models-----------------------------------------"""
+# quadrotor and load parameters
+nq         = int(uav_para[4])
+alpha      = 2*np.pi/nq
+rl         = load_para[1]
+L0         = cable_para[3]
+loadp      = np.vstack((Jl,rg)) # payload's inertial parameter
+Di_in, Di_h, Di_out = 6, 30, 2*nwsi + nui # for quadrotors
+Dl_in, Dl_h, Dl_out = 12, 30, 2*nwsl + nul # for the payload
+npi        = 2*nwsi + nui
+npl        = 2*nwsl + nul
+nlp        = len(loadp)
+
+"""--------------------------------------Define controller--------------------------------------------------"""
+gamma      = 1e-4 # barrier parameter, cannot be too small
+gamma2     = 1e-15
+GeoCtrl    = Robust_Flight_MPC_acados.Controller(uav_para, dt_ctrl)
+DistMPC    = Robust_Flight_MPC_acados.MPC(uav_para, load_para, cable_para, dt_ctrl, horizon, gamma, gamma2)
+DistMPC.SetStateVariable(stm.xi,stm.xq,stm.xl,stm.index_q)
+DistMPC.SetCtrlVariable(stm.ui,stm.ul,stm.ti)
+DistMPC.SetLoadParameter(stm.Jldiag,stm.rg)
+DistMPC.SetDyn(stm.model_i,stm.model_l,stm.dyni,stm.dynl)
+DistMPC.SetLearnablePara()
+DistMPC.SetQuadrotorCostDyn()
+DistMPC.SetPayloadCostDyn()
+DistMPC.SetConstraints_Qaudrotor()
+DistMPC.SetConstraints_Load()
+DistMPC.MPCsolverQuadrotorInit_acados()
+DistMPC.MPCsolverPayloadInit_acados()
+
+"""--------------------------------------Define reference trajectories----------------------------------------"""
+angle_t = np.pi/9 # tilt angle to enlarge the inter-robot separation space, manually tuned, which will be learned in the future work
+Coeffx        = np.zeros((8,8))
+Coeffy        = np.zeros((8,8))
+Coeffz        = np.zeros((8,8))
+for k in range(8):
+    Coeffx[k,:] = np.load('Reference_traj_fig8/coeffxl_'+str(k+1)+'.npy')
+    Coeffy[k,:] = np.load('Reference_traj_fig8/coeffyl_'+str(k+1)+'.npy')
+    Coeffz[k,:] = np.load('Reference_traj_fig8/coeffzl_'+str(k+1)+'.npy')
+    # Coeffx[k,:] = np.load(os.path.join(package_share_directory, 'Reference_traj_fig8/coeffxl_'+str(k+1)+'.npy'))
+    # Coeffy[k,:] = np.load(os.path.join(package_share_directory, 'Reference_traj_fig8/coeffyl_'+str(k+1)+'.npy'))
+    # Coeffz[k,:] = np.load(os.path.join(package_share_directory, 'Reference_traj_fig8/coeffzl_'+str(k+1)+'.npy'))
+
+
+# coeffa = np.load('Reference_traj_circle/coeffa.npy')
+def Reference_for_MPC(time_traj, angle_t):
+    Ref_xq  = [] # quadrotors' state reference trajectories for MPC, ranging from the current k to future k + horizon
+    Ref_uq  = [] # quadrotors' control reference trajectories for MPC, ranging from the current k to future k + horizon
+    Ref_xl  = np.zeros((nxl,horizon+1))
+    Ref_ul  = np.zeros((nul,horizon))
+    Ref0_xq = [] # current quadrotors' reference position and velocity
+    # quadrotor's reference
+    for i in range(nq):
+        Ref_xi  = np.zeros((nxi,horizon+1))
+        Ref_ui  = np.zeros((nui,horizon))
+        for j in range(horizon):
+            ref_p, ref_v, ref_a   = stm.minisnap_quadrotor_fig8(Coeffx, Coeffy, Coeffz,time_traj + j*dt_ctrl, angle_t, i)
+            # ref_p, ref_v, ref_a   = stm.new_circle_quadrotor(coeffa,time_traj + j*dt_ctrl, angle_t, i)
+            # ref_p, ref_v, ref_a   = stm.hovering_quadrotor(angle_t, i)
+            if i==0: # we only need to compute the payload's reference for an arbitrary quadrotor
+                ref_pl, ref_vl, ref_al   = stm.minisnap_load_fig8(Coeffx, Coeffy, Coeffz,time_traj + j*dt_ctrl)
+                # ref_pl, ref_vl, ref_al   = stm.new_circle_load(coeffa,time_traj + j*dt_ctrl)
+                # ref_pl, ref_vl, ref_al   = stm.hovering_load()
+            qd, wd, f_ref, fl_ref, M_ref = GeoCtrl.system_ref(ref_a, load_para[0], ref_al)
+            ref_xi    = np.vstack((ref_p,ref_v,qd,wd))
+            ref_ui    = np.vstack((f_ref,M_ref)) 
+            Ref_xi[:,j:j+1] = ref_xi
+            Ref_ui[:,j:j+1] = ref_ui
+            if i==0:
+                qld       = np.array([[1,0,0,0]]).T # desired quaternion of the payload, representing the identity matrix
+                wld       = np.zeros((3,1)) # deisred angular velocity of the payload
+                ref_xl    = np.vstack((ref_pl, ref_vl, qld, wld))
+                ref_ul    = fl_ref/nul*np.ones((nul,1))
+                Ref_xl[:,j:j+1] = ref_xl
+                Ref_ul[:,j:j+1] = ref_ul
+                if j==0:
+                    Ref0_l   = ref_xl
+            if j == 0:
+                Ref0_xq += [np.vstack((ref_p,ref_v))]
+        ref_p, ref_v, ref_a  = stm.minisnap_quadrotor_fig8(Coeffx, Coeffy, Coeffz,time_traj + horizon*dt_ctrl, angle_t, i)    
+        # ref_p, ref_v, ref_a  = stm.new_circle_quadrotor(coeffa,time_traj + horizon*dt_ctrl, angle_t, i)
+        # ref_p, ref_v, ref_a   = stm.hovering_quadrotor(angle_t, i)
+        if i==0:
+            ref_pl, ref_vl, ref_al   = stm.minisnap_load_fig8(Coeffx, Coeffy, Coeffz,time_traj + horizon*dt_ctrl)
+            # ref_pl, ref_vl, ref_al   = stm.new_circle_load(coeffa,time_traj + horizon*dt_ctrl)
+            # ref_pl, ref_vl, ref_al   = stm.hovering_load()
+        qd, wd, f_ref, fl_ref, M_ref = GeoCtrl.system_ref(ref_a, load_para[0], ref_al)
+        ref_xi    = np.vstack((ref_p,ref_v,qd,wd))
+        Ref_xi[:,horizon:horizon+1] = ref_xi
+        Ref_xq   += [Ref_xi]
+        Ref_uq   += [Ref_ui]
+        if i==0:
+            ref_xl    = np.vstack((ref_pl, ref_vl, qld, wld))
+            Ref_xl[:,horizon:horizon+1] = ref_xl
+        
+    return Ref_xq, Ref_uq, Ref_xl, Ref_ul, Ref0_xq, Ref0_l
+
+
+"""--------------------------------------Define MPC gradient------------------------------------------------"""
+MPCgrad    = Robust_Flight_MPC_acados.MPC_gradient(stm.xi,stm.xl,stm.ti,DistMPC.para_i,DistMPC.para_l,DistMPC.loadp,horizon)
+
+
+"""--------------------------------------Define sensitivity propagation-------------------------------------"""
+Sensprop   = Robust_Flight_MPC_acados.Sensitivity_propagation(uav_para,stm.xi,stm.xl,stm.ul,
+                                                       DistMPC.para_i,DistMPC.para_l,DistMPC.loadp,horizon_loss,horizon)
+
+
+"""--------------------------------------Parameterization of neural network output--------------------------"""
+pmin, pmax = 0.01, 100 # lower and upper boundaries
+def SetPara_quadrotor(nn_i_output):
+    Qik_diag   = np.zeros((1,nwsi)) # diagonal weighting for the quadrotor's state in the running cost
+    QiN_diag   = np.zeros((1,nwsi)) # diagonal weighting for the quadrotor's state in the terminal cost
+    Rik_diag   = np.zeros((1,nui)) # diagonal weighting for the quadrotor's control in the running cost
+    for k in range(nwsi):
+        Qik_diag[0,k] = pmin + (pmax-pmin)*nn_i_output[0,k]
+        QiN_diag[0,k] = pmin + (pmax-pmin)*nn_i_output[0,nwsi+k]
+    for k in range(nui):
+        Rik_diag[0,k] = pmin + (pmax-pmin)*nn_i_output[0,2*nwsi+k]
+    weight_i   = np.hstack((Qik_diag,QiN_diag,Rik_diag))
+
+    return weight_i
+
+def SetPara_load(nn_l_output):
+    Qlk_diag   = np.zeros((1,nwsl)) # diagonal weighting for the payload's state in the running cost
+    QlN_diag   = np.zeros((1,nwsl)) # diagonal weighting for the payload's state in the terminal cost
+    Rlk_diag   = np.zeros((1,nul)) # diagonal weighting for the payload's control in the running cost
+    for k in range(nwsl):
+        Qlk_diag[0,k] = pmin + (pmax-pmin)*nn_l_output[0,k]
+        QlN_diag[0,k] = pmin + (pmax-pmin)*nn_l_output[0,nwsl+k]
+    for k in range(nul):
+        Rlk_diag[0,k] = pmin + (pmax-pmin)*nn_l_output[0,2*nwsl+k]
+    weight_l   = np.hstack((Qlk_diag,QlN_diag,Rlk_diag))
+
+    return weight_l
+
+def chainRule_gradient_quad(nn_i_output):
+    tunable = SX.sym('tp',1,Di_out)
+    Qik_dg  = SX.sym('Qik_dg',1,nwsi)
+    QiN_dg  = SX.sym('QiN_dg',1,nwsi)
+    Rik_dg  = SX.sym('Rik_dg',1,nui)
+    for k in range(nwsi):
+        Qik_dg[0,k] = pmin + (pmax-pmin)*tunable[0,k]
+        QiN_dg[0,k] = pmin + (pmax-pmin)*tunable[0,nwsi+k]
+    for k in range(nui):
+        Rik_dg[0,k] = pmin + (pmax-pmin)*tunable[0,2*nwsi+k]
+    weighti = horzcat(Qik_dg,QiN_dg,Rik_dg)
+    w_i_jaco= jacobian(weighti,tunable)
+    w_i_jaco_fn = Function('w_i_jaco',[tunable],[w_i_jaco],['tp0'],['w_i_jacof'])
+    weight_i_grad = w_i_jaco_fn(tp0=nn_i_output)['w_i_jacof'].full()
+    return weight_i_grad
+
+def chainRule_gradient_load(nn_l_output):
+    tunable = SX.sym('tp',1,Dl_out)
+    Qlk_dg  = SX.sym('Qlk_dg',1,nwsl)
+    QlN_dg  = SX.sym('QlN_dg',1,nwsl)
+    Rlk_dg  = SX.sym('Rlk_dg',1,nul)
+    for k in range(nwsl):
+        Qlk_dg[0,k] = pmin + (pmax-pmin)*tunable[0,k]
+        QlN_dg[0,k] = pmin + (pmax-pmin)*tunable[0,nwsl+k]
+    for k in range(nul):
+        Rlk_dg[0,k] = pmin + (pmax-pmin)*tunable[0,2*nwsl+k]
+    weightl = horzcat(Qlk_dg,QlN_dg,Rlk_dg)
+    w_l_jaco= jacobian(weightl,tunable)
+    w_l_jaco_fn = Function('w_l_jaco',[tunable],[w_l_jaco],['tp0'],['w_l_jacof'])
+    weight_l_grad = w_l_jaco_fn(tp0=nn_l_output)['w_l_jacof'].full()
+    return weight_l_grad
+
+def convert_quadrotor_nn(nn_i_outcolumn):
+    # convert a column tensor to a row np.array
+    nn_i_row = np.zeros((1,Di_out))
+    for i in range(Di_out):
+        nn_i_row[0,i] = nn_i_outcolumn[i,0]
+    return nn_i_row
+
+def convert_load_nn(nn_l_outcolumn):
+    # convert a column tensor to a row np.array
+    nn_l_row = np.zeros((1,Dl_out))
+    for i in range(Dl_out):
+        nn_l_row[0,i] = nn_l_outcolumn[i,0]
+    return nn_l_row
+
+def QuadrotorMPC(xi_fb, xq_traj, uq_traj, xl_traj, ul_traj, Ref_xi, Ref_ui, Para_i, i, xi_temp, ui_temp, viol_xtemp, viol_utemp):
+    xi_opt      = np.zeros((horizon+1,nxi))
+    ui_opt      = np.zeros((horizon,nui))
+    xi_traj     = xq_traj[i] # this trajectory list should be updated after each iteration
+    ui_traj     = uq_traj[i] # this trajectory list should also be updated after each iteration
+    xi_fb       = np.reshape(xi_fb,nxi)
+    ref_xi      = np.zeros(nxi*(horizon+1))
+    ref_ui      = np.zeros(nui*horizon)
+    xl_trajh    = np.zeros(nxl*(horizon+1))
+    for k in range(horizon):
+        ref_xik = np.reshape(Ref_xi[:,k],nxi)
+        ref_xi[k*nxi:(k+1)*nxi]=ref_xik
+        ref_uik = np.reshape(Ref_ui[:,k],nui)
+        ref_ui[k*nui:(k+1)*nui]=ref_uik
+        xl_k    = np.reshape(xl_traj[k,:],nxl)
+        xl_trajh[k*nxl:(k+1)*nxl]=xl_k
+    ref_xi[horizon*nxi:(horizon+1)*nxi]=np.reshape(Ref_xi[:,horizon],nxi)
+    xl_trajh[horizon*nxl:(horizon+1)*nxl]=np.reshape(xl_traj[horizon,:],nxl)
+    Para_i      = np.reshape(Para_i,npi)
+    xq_i        = np.zeros((nq-1)*2*(horizon+1))
+    kj = 0
+    for j in range(nq):
+        if j!=i:
+            xqj     = xq_traj[j]
+            xqj_xy  = np.reshape(xqj[:,0:2],2*(horizon+1))
+            xq_i[kj*2*(horizon+1):(kj+1)*2*(horizon+1)] = xqj_xy
+            kj += 1
+    uli_traj    = np.reshape(ul_traj[:,i],horizon)
+    opt_sol_i   = DistMPC.MPCsolverQuadrotor_acados(xi_fb, xq_i, xl_trajh, uli_traj, ref_xi, ref_ui, Para_i, i)
+    xi_opt      = np.array(opt_sol_i['xi_opt'])
+    ui_opt      = np.array(opt_sol_i['ui_opt'])
+    # cox_opt_i   = opt_sol_i['costatei_opt']
+    sum_viol_xi = 0
+    sum_viol_ui = 0
+    # sum_viol_cxi= 0
+    for ki in range(len(ui_traj)):
+        sum_viol_xi  += LA.norm(xi_opt[ki,:]-xi_traj[ki,:])
+        sum_viol_ui  += LA.norm(ui_opt[ki,:]-ui_traj[ki,:])
+        # sum_viol_cxi += LA.norm(cox_opt_i[ki,:]-cox_ipopt_i[ki,:])
+    sum_viol_xi  += LA.norm(xi_opt[-1,:]-xi_traj[-1,:])
+    viol_xi  = np.reshape(sum_viol_xi/len(xi_opt),(1,1))
+    viol_ui  = np.reshape(sum_viol_ui/len(ui_opt),(1,1))
+    # viol_cxi = np.reshape(sum_viol_cxi/len(cox_opt_i),(1,1))
+    xi_temp[:]  = np.reshape(xi_opt,(horizon+1)*nxi)
+    ui_temp[:]  = np.reshape(ui_opt,horizon*nui)
+    viol_xtemp[:]  = np.reshape(viol_xi,1)
+    viol_utemp[:]  = np.reshape(viol_ui,1)
+    # viol_ctemp[:]  = np.reshape(viol_cxi,1)
+
+
+def Distributed_forwardMPC(xq_fb, xl_fb, xq_traj_prev, uq_traj_prev, xl_traj_prev, ul_traj_prev, Ref_xq, Ref_uq, Ref_xl, Ref_ul, Para_q, Para_l, Jl, rg):
+    epsilon = 1e-2 # threshold for stopping the iteration
+    k_max   = 5 # maximum number of iterations
+    max_violation = 5 # initial value of max_violation, defined as the maximum value of the differences between two trajectories in successive iterations for all quadrotors
+    ke      = 1
+    xq_traj = []
+    uq_traj = []
+    for iq in range(nq):
+        xiq_traj = np.zeros((horizon+1,nxi))
+        uiq_traj = np.zeros((horizon,nui))
+        xi_prev  = xq_traj_prev[iq]
+        ui_prev  = uq_traj_prev[iq]
+        for iqk in range(horizon):
+            xiq_traj[iqk,:] = xi_prev[iqk+1,:] # note that we have moved forward by one time-step, so we take elements from [1,:]
+            if iqk <horizon-1:
+                uiq_traj[iqk,:] = ui_prev[iqk+1,:]
+            else:
+                uiq_traj[-1,:] = ui_prev[-1,:]
+        xiq_traj[-1,:] = xi_prev[-1,:]
+        xq_traj += [xiq_traj]
+        uq_traj += [uiq_traj]
+    xl_traj = np.zeros((horizon+1,nxl))
+    ul_traj = np.zeros((horizon,nul))
+    for il in range(horizon):
+        xl_traj[il,:] = xl_traj_prev[il+1,:]
+        if il <horizon-1:
+            ul_traj[il,:] = ul_traj_prev[il+1,:]
+        else:
+            ul_traj[-1,:] = ul_traj_prev[-1,:]
+    xl_traj[-1,:] = xl_traj_prev[-1,:]
+
+    while max_violation>=epsilon and ke<=k_max:
+        viol_xtemp  = []
+        viol_utemp  = []
+        viol_cxtemp = []
+        viol_x      = []
+        viol_u      = []
+        xq_temp     = [] # temporary list for saving the updated state trajectories during the 'for' loop
+        uq_temp     = [] # temporary list for saving the updated control trajectories during the 'for' loop
+        cx_quad     = []
+        cx_temp     = []
+        n_process   = []
+
+        for _ in range(nq):
+            xi_traj = Array('d',np.zeros((horizon+1)*nxi))
+            ui_traj = Array('d',np.zeros((horizon)*nui))
+            ci_traj = Array('d',np.zeros((horizon)*nxi))
+            viol_xi = Array('d',np.zeros(1))
+            viol_ui = Array('d',np.zeros(1))
+            viol_ci = Array('d',np.zeros(1))
+            xq_temp.append(xi_traj)
+            uq_temp.append(ui_traj)
+            cx_temp.append(ci_traj)
+            viol_xtemp.append(viol_xi)
+            viol_utemp.append(viol_ui)
+            viol_cxtemp.append(viol_ci)
+
+        for i in range(nq):
+            p = Process(target=QuadrotorMPC,args=(xq_fb[i], xq_traj, uq_traj, xl_traj, ul_traj, Ref_xq[i], Ref_uq[i], Para_q[i], i, xq_temp[i], uq_temp[i], viol_xtemp[i], viol_utemp[i]))
+            p.start() 
+            n_process.append(p)
+        
+        for p in n_process: 
+            p.join()
+        
+        for i in range(nq):
+            xi_opt = np.reshape(xq_temp[i],(horizon+1, nxi))
+            ui_opt = np.reshape(uq_temp[i],(horizon, nui))
+            # ci_ipopt = np.reshape(cx_temp[i],(horizon, nxi))
+            violxi = np.reshape(viol_xtemp[i],(1))
+            violui = np.reshape(viol_utemp[i],(1))
+            # violci = np.reshape(viol_cxtemp[i],(1))
+            print('iteration=',ke,'quadrotor_ID=',i,'viol_xi=',format(violxi[0],'.5f'),'viol_ui=',format(violui[0],'.5f'))
+            xq_traj[i] = xi_opt
+            uq_traj[i] = ui_opt
+            # cx_quad   += [ci_ipopt]
+            viol_x    += [violxi[0]]
+            viol_u    += [violui[0]]
+
+        # solve the MPC of the payload using the updated quadrotor trajectories xq_traj
+        xl_fbh      = np.reshape(xl_fb,nxl)
+        ref_xl      = np.zeros(nxl*(horizon+1))
+        ref_ul      = np.zeros(nul*horizon)
+        for k in range(horizon):
+            ref_xlk = np.reshape(Ref_xl[:,k],nxl)
+            ref_xl[k*nxl:(k+1)*nxl] = ref_xlk
+            ref_ulk = np.reshape(Ref_ul[:,k],nul)
+            ref_ul[k*nul:(k+1)*nul] = ref_ulk
+        ref_xl[horizon*nxl:(horizon+1)*nxl]=np.reshape(Ref_xl[:,horizon],nxl)
+        Para_lh     = np.reshape(Para_l,npl)
+        xq_h        = np.zeros(nq*nxi*(horizon+1))
+        for j in range(nq):
+            xq_j    = xq_traj[j]
+            xq_jp   = np.reshape(xq_j,nxi*(horizon+1)) # row-by-row
+            xq_h[j*nxi*(horizon+1):(j+1)*nxi*(horizon+1)]=xq_jp
+        Jlh         = np.reshape(Jl,3)
+        rgh         = np.reshape(rg,3)
+        # Parameter_l = np.hstack((xl_fbh,ref_xl,ref_ul,Para_lh,xq_h,Jlh,rgh))
+        # Parameter_l = np.reshape(parameterl,(1,len(parameterl)))
+        opt_sol_l   = DistMPC.MPCsolverPayload_acados(xl_fbh, xq_h, ref_xl, ref_ul, Para_lh, Jlh, rgh)
+        xl_opt      = np.array(opt_sol_l['xl_opt'])
+        ul_opt      = np.array(opt_sol_l['ul_opt'])  
+        sum_viol_xl = 0
+        sum_viol_ul = 0
+        for kl in range(len(ul_traj)):
+            sum_viol_xl  += LA.norm(xl_opt[kl,:]-xl_traj[kl,:])
+            sum_viol_ul  += LA.norm(ul_opt[kl,:]-ul_traj[kl,:])
+            # sum_viol_cxl += LA.norm(cox_opt_l[kl,:]-cox_ipopt_l[kl,:])
+        sum_viol_xl  += LA.norm(xl_opt[-1,:]-xl_traj[-1,:])
+        viol_xl  = sum_viol_xl/len(xl_opt)
+        viol_ul  = sum_viol_ul/len(ul_opt)
+        # viol_cxl = sum_viol_cxl/len(cox_opt_l)
+        viol_x += [viol_xl]
+        viol_u += [viol_ul]
+        initial_error = LA.norm(np.reshape(xl_opt[0,:],(nxl,1))-xl_fb)
+        print('iteration=',ke,'payload:','viol_xl=',format(viol_xl,'.5f'),'viol_ul=',format(viol_ul,'.5f'),'viol_x0l=',initial_error)
+        # update the payload's trajectories
+        xl_traj  = xl_opt
+        ul_traj  = ul_opt
+
+        # compute the maximum violation value
+        viol  = np.concatenate((viol_x,viol_u))
+        if ke>1:
+            max_violation = np.max(viol)
+        print('iteration=',ke,'max_violation=',format(max_violation,'.5f'))
+        # update the iteration number
+        ke += 1
+    # output
+    opt_system = {"xq_traj":xq_traj,
+                      "uq_traj":uq_traj,
+                      "xl_traj":xl_traj,
+                      "ul_traj":ul_traj
+                      }
+        
+    return opt_system
+
+
+# ...existing code...
+import multiprocessing
+from multiprocessing import Pool, shared_memory
+import ctypes
+
+# Create a global variable for the process pool
+pool = None
+multiprocessing.set_start_method('fork', force=True)
+# multiprocessing.set_start_method('spawn', force=True)
+
+# Create shared memory for the trajectories, put xq_traj, uq_traj, xl_traj, ul_traj into it
+xq_size = nq*(horizon+1)*nxi
+uq_size = nq*horizon*nui
+xl_size = (horizon+1)*nxl
+ul_size = horizon*nul 
+
+buffer_size = xq_size + uq_size + xl_size + ul_size
+
+# Copy the data to shared memory segment by segment
+start_xq = 0
+start_uq = xq_size
+start_xl = xq_size + uq_size
+start_ul = xq_size + uq_size + xl_size
+
+index_dict = {
+            'start_xq': start_xq,
+            'start_uq': start_uq,
+            'start_xl': start_xl,
+            'start_ul': start_ul,
+            'buffer_size': buffer_size
+        }
+
+def QuadrotorMPC_wrapper(args):
+    """
+    Using shared memory to reduce the overhead of transferring large data between processes.
+    Extract xq_traj, uq_traj, xl_traj, ul_traj and other data from shared_mem_name as needed to compute the results.
+    """
+    (i, xi_fb, ref_xi, ref_ui, Para_i, shared_mem_name, 
+     index_dict, horizon, nxi, nui, nxl, npi, nq) = args
+    
+    existing_shm = shared_memory.SharedMemory(name=shared_mem_name)
+    buffer = np.ndarray((index_dict['buffer_size'],), dtype=ctypes.c_double, buffer=existing_shm.buf)
+    local_buffer = buffer.copy()  # Copy the shared memory data to local variables
+
+    # Recover the trajectories into their original shapes
+    # xq_traj: shape = (nq, horizon+1, nxi)
+    # uq_traj: shape = (nq, horizon, nui)
+    # xl_traj: shape = (horizon+1, nxl)
+    # ul_traj: shape = (horizon, nul)
+    start_xq = index_dict['start_xq']
+    start_uq = index_dict['start_uq']
+    start_xl = index_dict['start_xl']
+    start_ul = index_dict['start_ul']
+
+    # xq_traj_flat = buffer[start_xq : start_xq + nq*(horizon+1)*nxi]
+    # uq_traj_flat = buffer[start_uq : start_uq + nq*horizon*nui]
+    # xl_traj_flat = buffer[start_xl : start_xl + (horizon+1)*nxl]
+    # ul_traj_flat = buffer[start_ul : start_ul + horizon*nul]
+    xq_traj_flat = local_buffer[start_xq : start_xq + nq*(horizon+1)*nxi]
+    uq_traj_flat = local_buffer[start_uq : start_uq + nq*horizon*nui]
+    xl_traj_flat = local_buffer[start_xl : start_xl + (horizon+1)*nxl]
+    ul_traj_flat = local_buffer[start_ul : start_ul + horizon*nul]
+
+
+    xq_traj = xq_traj_flat.reshape((nq, horizon+1, nxi))
+    uq_traj = uq_traj_flat.reshape((nq, horizon, nui))
+    xl_traj = xl_traj_flat.reshape((horizon+1, nxl))
+    ul_traj = ul_traj_flat.reshape((horizon, nul)) 
+
+    xi_opt = np.zeros((horizon+1, nxi))
+    ui_opt = np.zeros((horizon, nui))
+    xi_fb = np.reshape(xi_fb, nxi)
+
+    ref_xi_full = np.zeros(nxi*(horizon+1))
+    ref_ui_full = np.zeros(nui*horizon)
+    xl_trajh    = np.zeros(nxl*(horizon+1))
+
+    for k in range(horizon):
+        ref_xi_full[k*nxi:(k+1)*nxi] = np.reshape(ref_xi[:,k], nxi)
+        ref_ui_full[k*nui:(k+1)*nui] = np.reshape(ref_ui[:,k], nui)
+        xl_trajh[k*nxl:(k+1)*nxl]    = xl_traj[k,:]
+    ref_xi_full[horizon*nxi:(horizon+1)*nxi] = np.reshape(ref_xi[:,horizon], nxi)
+    xl_trajh[horizon*nxl:(horizon+1)*nxl]    = xl_traj[horizon,:]
+    Para_i = np.reshape(Para_i, npi)
+
+    # Shape the xq_i
+    xq_i = np.zeros((nq-1)*2*(horizon+1))
+    kj   = 0
+    for j in range(nq):
+        if j != i:
+            xqj = xq_traj[j]
+            xqj_xy = np.reshape(xqj[:,0:2], 2*(horizon+1))
+            xq_i[kj*2*(horizon+1):(kj+1)*2*(horizon+1)] = xqj_xy
+            kj += 1
+
+    uli_traj = np.reshape(ul_traj[:,i], horizon)
+
+    opt_sol_i = DistMPC.MPCsolverQuadrotor_acados(
+        xi_fb, xq_i, xl_trajh, uli_traj,
+        ref_xi_full, ref_ui_full, Para_i, i
+    )
+    xi_opt = np.array(opt_sol_i['xi_opt'])
+    ui_opt = np.array(opt_sol_i['ui_opt'])
+
+    # Calculate violations
+    xi_traj_i = xq_traj[i] 
+    ui_traj_i = uq_traj[i]
+    sum_viol_xi, sum_viol_ui = 0, 0
+    for ki in range(len(ui_traj_i)):
+        sum_viol_xi += LA.norm(xi_opt[ki,:] - xi_traj_i[ki,:])
+        sum_viol_ui += LA.norm(ui_opt[ki,:] - ui_traj_i[ki,:])
+    sum_viol_xi += LA.norm(xi_opt[-1,:] - xi_traj_i[-1,:])
+
+    viol_xi = sum_viol_xi / len(xi_opt)
+    viol_ui = sum_viol_ui / len(ui_opt)
+
+    return (i, xi_opt, ui_opt, viol_xi, viol_ui)
+
+def Distributed_forwardMPC_Parallel(xq_fb, xl_fb, xq_traj_prev, uq_traj_prev, xl_traj_prev, ul_traj_prev,
+                           Ref_xq, Ref_uq, Ref_xl, Ref_ul, Para_q, Para_l, Jl, rg, shared_mem_name, pool=None):
+    epsilon = 1e-2
+    k_max   = 5
+    max_violation = 5
+    ke      = 1
+    # Shift xq_traj, uq_traj
+    for iq in range(nq):
+        xiq_traj = np.zeros((horizon+1,nxi))
+        uiq_traj = np.zeros((horizon,nui))
+        xi_prev  = xq_traj_prev[iq]
+        ui_prev  = uq_traj_prev[iq]
+        for iqk in range(horizon):
+            xiq_traj[iqk,:] = xi_prev[iqk+1,:]
+            if iqk < horizon-1:
+                uiq_traj[iqk,:] = ui_prev[iqk+1,:]
+            else:
+                uiq_traj[-1,:] = ui_prev[-1,:]
+        xiq_traj[-1,:] = xi_prev[-1,:]
+        if iq==0:
+            xq_traj = [xiq_traj]
+            uq_traj = [uiq_traj]
+        else:
+            xq_traj.append(xiq_traj)
+            uq_traj.append(uiq_traj)
+
+    xl_traj = np.zeros((horizon+1,nxl))
+    ul_traj = np.zeros((horizon,nul))
+    for il in range(horizon):
+        xl_traj[il,:] = xl_traj_prev[il+1,:]
+        if il < horizon-1:
+            ul_traj[il,:] = ul_traj_prev[il+1,:]
+        else:
+            ul_traj[-1,:] = ul_traj_prev[-1,:]
+    xl_traj[-1,:] = xl_traj_prev[-1,:]
+
+    while max_violation >= epsilon and ke <= k_max:
+        viol_x, viol_u = [], []
+
+        # Call the existing shared memory, put xq_traj, uq_traj, xl_traj, ul_traj into it
+        existing_shm = shared_memory.SharedMemory(name=shared_mem_name)
+        buffer = np.ndarray((buffer_size,), dtype=ctypes.c_double, buffer=existing_shm.buf)
+
+        xq_arr = np.ravel(np.array(xq_traj))
+        uq_arr = np.ravel(np.array(uq_traj))
+        xl_arr = np.ravel(xl_traj)
+        ul_arr = np.ravel(ul_traj)
+
+        buffer[start_xq : start_xq + xq_size] = xq_arr
+        buffer[start_uq : start_uq + uq_size] = uq_arr
+        buffer[start_xl : start_xl + xl_size] = xl_arr
+        buffer[start_ul : start_ul + ul_size] = ul_arr
+
+        # Prepare task arguments for each quadrotor
+        task_args = []
+        for i in range(nq):
+            # Shape Ref_xi, Ref_ui
+            quad_ref_xi = Ref_xq[i]
+            quad_ref_ui = Ref_uq[i]
+            task_args.append((
+                i,
+                xq_fb[i],
+                quad_ref_xi,
+                quad_ref_ui,
+                Para_q[i],
+                shm.name,
+                index_dict,
+                horizon, nxi, nui, nxl, npi, nq
+            ))
+
+        # Parallel execution of QuadrotorMPC_wrapper
+        # with Pool(processes=nq) as pool:
+        results = pool.map(QuadrotorMPC_wrapper, task_args)
+
+        # tasks = [
+        #     delayed(QuadrotorMPC_wrapper)(
+        #         i, xq_fb[i], Ref_xq[i], Ref_uq[i], Para_q[i],
+        #         shared_mem_name, index_dict, horizon, nxi, nui, nxl, npi, nq
+        #     )
+        #     for i in range(nq)
+        # ]
+        # # Using joblib
+        # results = Parallel(n_jobs=nq)(tasks)
+
+        # Collect results
+        for res in results:
+            i, xi_opt, ui_opt, viol_xi, viol_ui = res
+            xq_traj[i] = xi_opt
+            uq_traj[i] = ui_opt
+            print('iteration=', ke, 'quadrotor_ID=', i,
+                  'viol_xi=', format(viol_xi, '.5f'),
+                  'viol_ui=', format(viol_ui, '.5f'))
+            viol_x.append(viol_xi)
+            viol_u.append(viol_ui)
+
+        # payload MPC
+        xl_fbh   = np.reshape(xl_fb, nxl)
+        ref_xl   = np.zeros(nxl*(horizon+1))
+        ref_ul   = np.zeros(nul*horizon)
+        for k in range(horizon):
+            ref_xl[k*nxl:(k+1)*nxl] = np.reshape(Ref_xl[:,k],nxl)
+            ref_ul[k*nul:(k+1)*nul] = np.reshape(Ref_ul[:,k],nul)
+        ref_xl[horizon*nxl:(horizon+1)*nxl] = np.reshape(Ref_xl[:,horizon],nxl)
+        Para_lh  = np.reshape(Para_l, npl)
+
+        xq_h = np.zeros(nq*nxi*(horizon+1))
+        for j in range(nq):
+            xq_j  = xq_traj[j]
+            xq_hj = np.reshape(xq_j, nxi*(horizon+1))
+            xq_h[j*nxi*(horizon+1):(j+1)*nxi*(horizon+1)] = xq_hj
+
+        Jlh = np.reshape(Jl,3)
+        rgh = np.reshape(rg,3)
+
+        opt_sol_l = DistMPC.MPCsolverPayload_acados(
+            xl_fbh, xq_h, ref_xl, ref_ul, Para_lh, Jlh, rgh
+        )
+        xl_opt = np.array(opt_sol_l['xl_opt'])
+        ul_opt = np.array(opt_sol_l['ul_opt'])
+
+        sum_viol_xl, sum_viol_ul = 0, 0
+        for kl in range(len(ul_traj)):
+            sum_viol_xl += LA.norm(xl_opt[kl,:] - xl_traj[kl,:])
+            sum_viol_ul += LA.norm(ul_opt[kl,:] - ul_traj[kl,:])
+        sum_viol_xl += LA.norm(xl_opt[-1,:] - xl_traj[-1,:])
+        viol_xl = sum_viol_xl / len(xl_opt)
+        viol_ul = sum_viol_ul / len(ul_opt)
+
+        viol_x.append(viol_xl)
+        viol_u.append(viol_ul)
+        initial_error = LA.norm(np.reshape(xl_opt[0,:],(nxl,1)) - xl_fb)
+
+        print('iteration=', ke, 'payload:', 
+              'viol_xl=', format(viol_xl, '.5f'),
+              'viol_ul=', format(viol_ul, '.5f'),
+              'viol_x0l=', initial_error)
+
+        xl_traj = xl_opt
+        ul_traj = ul_opt
+
+        viol_all = np.concatenate((viol_x, viol_u))
+        if ke > 1:
+            max_violation = np.max(viol_all)
+        print('iteration=', ke, 'max_violation=', format(max_violation, '.5f'))
+        ke += 1
+
+    opt_system = {
+        "xq_traj": xq_traj,
+        "uq_traj": uq_traj,
+        "xl_traj": xl_traj,
+        "ul_traj": ul_traj
+    }
+    return opt_system
+
+
+"""=========================Evaluation process======================="""
+def Evaluate(shared_mem_name, pool=None):
+    T_end      = stm.Tc # total simulation duration
+    N          = int(T_end/dt_sample) # total iterations
+    if not os.path.exists("Evaluation results_para"):
+        os.makedirs("Evaluation results_para")
+
+    # Lists for saving the Evaluation results_para
+    Quad_State   = []
+    Quad_Control = []
+    Load_State   = []
+    Tension_Load_Actual = []
+    Tension_Load_MPC    = []
+    Ref_Quad     = []
+    Ref_Load     = []
+    TIME         = []
+    EULER_l      = np.zeros((3,N))
+    STATE_l      = np.zeros((3,N))
+    REF_P_l      = np.zeros((3,N))
+    Vl           = []
+    # initial values used in the low-pass filter
+    sig_f_prev   = 0
+    u_prev       = np.array([[uav_para[0]*9.81,0,0,0]]).T
+    # initial state prediction
+    z_hat        = np.zeros((3,1))
+    Sig_f_prev   = []
+    U_prev       = []
+    Z_hat        = []
+    for i in range(nq):
+        Sig_f_prev += [sig_f_prev]
+        U_prev     += [u_prev]
+        Z_hat      += [z_hat]
+    
+    # Load the quadrotors' network models
+    NN_Quad    = []
+    for i in range(nq):
+        PATH_1 = "trained data/trained_nn_quad_"+str(i)+".pt"
+        # PATH_1 = os.path.join(package_share_directory, "trained data/trained_nn_quad_"+str(i)+".pt")
+        nn_quad_i = torch.load(PATH_1)
+        NN_Quad  += [nn_quad_i]
+    # Load the payload's network model
+    PATHl_2 = "trained data/trained_nn_load.pt"
+    # PATHl_2 = os.path.join(package_share_directory, "trained data/trained_nn_load.pt")
+    nn_load    = torch.load(PATHl_2)
+    
+    # Initialization of the system states
+    # initial palyload's state
+    x0         = np.random.normal(0,0.01)
+    y0         = np.random.normal(0,0.01)
+    z0         = np.random.normal(stm.hc,0.01)
+    pl         = np.array([[x0,y0,z0]]).T
+    vl         = np.reshape(np.random.normal(0,0.01,3),(3,1)) # initial velocity of CO in {Bl}
+    Eulerl     = np.reshape(np.random.normal(0,0.01,3),(3,1))
+    Rl0        = stm.dir_cosine(Eulerl)
+    r          = Rot.from_matrix(Rl0)  
+    # quaternion in the format of x, y, z, w 
+    # (https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.transform.Rotation.as_quat.html)
+    ql0        = r.as_quat() 
+    ql         = np.array([[ql0[3], ql0[0], ql0[1], ql0[2]]]).T
+    wl         = np.reshape(np.random.normal(0,0.01,3),(3,1))
+    # set of the quadrotors' initial states
+    Pi         = [] 
+    Vi         = [] 
+    Qi         = [] 
+    Wi         = []
+    EULERi     = []
+    for i in range(nq):
+        rli        = np.array([[(rl+L0*math.sin(angle_t))*math.cos(i*alpha),(rl+L0*math.sin(angle_t))*math.sin(i*alpha),0]]).T
+        pai        = pl + Rl0@rli
+        pi0        = pai + np.array([[0,0,L0*math.cos(angle_t)]]).T # the cables are assumed to be intially slack
+        Pi        += [pi0]
+        vi0        = np.reshape(np.random.normal(0,0.01,3),(3,1)) # initial velocity of CoM in {I}
+        Vi        += [vi0]
+        Euleri0    = np.reshape(np.random.normal(0,0.01,3),(3,1))
+        EULERi    += [Euleri0]
+        Ri0        = stm.dir_cosine(Euleri0)
+        ri0        = Rot.from_matrix(Ri0)
+        qi0        = ri0.as_quat() # in the format of x, y, z, w
+        qi0        = np.array([[qi0[3], qi0[0], qi0[1], qi0[2]]]).T
+        Qi        += [qi0]
+        wi0        = np.reshape(np.random.normal(0,0.01,3),(3,1))
+        Wi        += [wi0]
+                
+
+    # Initial time
+    time_traj  = 0 # elipsed time for the flight trajectory
+    # flag for selecting the reference trajectory
+    flag = 0
+    np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)}) # show np.array with 3 decimal places
+    # main simulation loop whose running frequency equals 1/dt_sample, which can be larger than 1/dt_ctrl
+    k_ctrl       = 0
+
+    # initial values used in the low-pass filter
+    sig_f_prev   = 0
+    u_prev       = np.array([[uav_para[0]*9.81,0,0,0]]).T
+
+    # initial state prediction
+    z_hat        = np.zeros((3,1))
+
+    Sig_f_prev   = []
+    U_prev       = []
+    Z_hat        = []
+    for i in range(nq):
+        Sig_f_prev += [sig_f_prev]
+        U_prev     += [u_prev]
+        Z_hat      += [z_hat]
+    df           = np.zeros((3,1))
+
+    task_start_time = TM.time()
+    for k in range(N): 
+        # payload's state
+        xl           = np.vstack((pl, vl, ql, wl))
+        # quadrotors' current states 
+        xq           = []
+        for i in range(nq):
+            xq       += [np.vstack((Pi[i],Vi[i],Qi[i],Wi[i]))]
+        Quad_State  += [xq]
+        Load_State  += [xl]
+        TIME        += [time_traj]
+        EULER_l[:,k:k+1]= Eulerl 
+        Vl          += [LA.norm(vl)]
+        # contorl loop whose running frequency equals 1/dt_ctrl
+        if (k%ratio)==0:    
+            #============================= Forward Path (Distributed MPC) ==============================#
+            # compute reference trajectories for MPC
+            Ref_xq, Ref_uq, Ref_xl, Ref_ul, Ref0_xq, Ref0_l = Reference_for_MPC(time_traj,angle_t)
+            Ref_Quad  += [Ref0_xq]
+            
+            
+            if flag ==0: # initialize the trajectories using the reference trajectories
+                xq_traj, uq_traj = [],[]
+                ul_traj = np.zeros((horizon,nul))
+                for ki in range(len(Ref_uq)):
+                    xq_traj  += [Ref_xq[ki].T]
+                    uq_traj  += [Ref_uq[ki].T]
+                xq_traj += [Ref_xq[-1].T]
+                xl_traj  = Ref_xl.T
+                ul_traj  = Ref_ul.T
+                # flag = 1
+            # generate adaptive MPC's weightings online through the networks
+            CTRL_gain       = [] # control gain list for all the quadrotors
+            NN_input_quad   = [] # network input list for all the quadrotors
+            NN_output_quad  = [] # network output list for all the quadrotors
+                
+            for i in range(nq):
+                track_e_i   = xq[i][0:6,0]-Ref0_xq[i][0:6,0]
+                input_i     = np.reshape(track_e_i,(Di_in,1))
+                nn_i_output = convert_quadrotor_nn(NN_Quad[i](input_i))
+                weight_i    = SetPara_quadrotor(nn_i_output)
+                print('time step=',k,'ctrl step=',k_ctrl,'quadrotor:',i,'Qi_k=',weight_i[0,0:3],'Ri_k=',weight_i[0,2*nwsi:])
+                NN_input_quad  += [input_i]
+                NN_output_quad += [nn_i_output]
+                   
+                CTRL_gain  += [weight_i]
+            pl_error     = np.reshape(xl[0:3,0] - Ref0_l[0:3,0],(3,1))
+            vl_error     = np.reshape(xl[3:6,0] - Ref0_l[3:6,0],(3,1))
+            ql           = xl[6:10,0]
+            qlref        = Ref0_l[6:10,0]
+            Rl           = stm.q_2_rotation(ql,1)
+            Rlref        = stm.q_2_rotation(qlref,1)
+            error_Rl     = Rlref.T@Rl - Rl.T@Rlref
+            att_error_l  = 1/2*stm.vee_map(error_Rl)
+            w_error_l    = np.reshape(xl[10:13,0] - Ref0_l[10:13,0],(3,1))
+            track_e_l    = np.vstack((pl_error,vl_error,att_error_l,w_error_l))
+            input_l      = np.reshape(track_e_l,(Dl_in,1))
+            nn_l_output  = convert_load_nn(nn_load(input_l))
+            Para_l       = SetPara_load(nn_l_output)
+                
+            print('time step=',k,'payload=','Ql_k[0:3]=',Para_l[0,0:3],'Ql_k[6:9]=',Para_l[0,6:9])
+            print('time step=',k,'payload=','Ql_N[0:3]=',Para_l[0,12:15],'Rl_k=',Para_l[0,2*nwsl:])
+            # solve the distributed MPC to generate optimal state and control trajectories
+            if ctrlmode=='s':
+                start_time = TM.time()
+                opt_system   = DistMPC.Distributed_forwardMPC(xq,xl,xq_traj,uq_traj,xl_traj,ul_traj,
+                                                              Ref_xq,Ref_uq,Ref_xl,Ref_ul,CTRL_gain,Para_l,Jl,rg)
+                mpctime = (TM.time() - start_time)*1000
+                print("s:--- %s ms ---" % format(mpctime,'.2f'),'ctrlmode=',ctrlmode)
+            else:
+                start_time = TM.time()
+                # opt_system   = Distributed_forwardMPC(xq,xl,xq_traj,uq_traj,xl_traj,ul_traj,
+                #                                               Ref_xq,Ref_uq,Ref_xl,Ref_ul,CTRL_gain,Para_l,Jl,rg) 
+                
+                opt_system   = Distributed_forwardMPC_Parallel(xq,xl,xq_traj,uq_traj,xl_traj,ul_traj,
+                                                              Ref_xq,Ref_uq,Ref_xl,Ref_ul,CTRL_gain,Para_l,Jl,rg, 
+                                                              shared_mem_name, pool) 
+                
+                mpctime = (TM.time() - start_time)*1000
+                print("p:--- %s ms ---" % format(mpctime,'.2f'),'ctrlmode=',ctrlmode)  
+            xq_traj      = opt_system['xq_traj']
+            uq_traj      = opt_system['uq_traj']
+            xl_traj      = opt_system['xl_traj']
+            ul_traj      = opt_system['ul_traj']
+            # cx_quad_traj = opt_system['cx_quad']
+            # cx_load_traj = opt_system['cx_load']
+
+            # robustify the MPC control using L1 adaptive control (piecewise-constant adaptation law)
+            Uad_lpf      = [] # list of the filtered estimation of the matched disturbance 
+            Dm, Dum      = [], [] # list of the mathced and unmatched disturbances
+            for i in range(nq):
+                xi       = xq[i]
+                z_hat    = Z_hat[i]
+                dm_hat, dum_hat, A_s = GeoCtrl.L1_adaptive_law(xi,z_hat)
+                Dm      += [dm_hat]
+                Dum     += [dum_hat]
+                # Low-pass filter
+                wf_coff  = 20 
+                time_constf = 1/wf_coff
+                f_prev   = Sig_f_prev[i]
+                f_lpf    = GeoCtrl.lowpass_filter(time_constf,dm_hat,f_prev)
+                Uad_lpf += [f_lpf]
+            
+            k_ctrl += 1
+        
+        #============================= Interaction with simulation environment ==============================#
+        STATE_l[:,k:k+1] = np.reshape(xl[0:3,0],(3,1))
+        REF_P_l[:,k:k+1] = np.reshape(Ref0_l[0:3,0],(3,1))
+        Ref_Load  += [Ref0_l]
+        ul           = np.zeros((nul,1)) # the payload's control that contains all the cable forces
+        uq           = [] # the collection of all the quadrotors' control
+        for i in range(nq):
+            # compute the cable forces
+            xi           = Quad_State[-1][i]
+            f_t          = stm.ith_cable_force(xi, xl, i) 
+            ul[i,0]      = f_t
+            # only the first control command is applied to the system
+            ui           = np.reshape(uq_traj[i][0,:],(nui,1)) 
+            # robustify the nominal control using the L1-AC compensation
+            ui[0,0]     += -Uad_lpf[i]
+            uq          += [ui]
+        if (k%ratio) == 0:
+            # update the state prediction in L1-AC
+            for i in range(nq):
+                z_hat    = Z_hat[i]
+                xi       = xq[i]
+                ui       = uq[i]
+                ti       = ul_traj[0,i]
+                dm       = Dm[i]
+                dum      = Dum[i]
+                z_hatnew = stm.predictor_L1(z_hat, xi, ui, xl, ti, dm, dum, A_s, i, dt_ctrl)
+                Z_hat[i] = z_hatnew
+                
+        Quad_Control += [uq]
+        Tension_Load_Actual += [ul]
+        Tension_Load_MPC    += [ul_traj[0,:]]
+        print('k=',k,'Tension =',ul.T,'ul=',ul_traj[0,:])
+        print('k=',k,'Tension difference =',ul_traj[0,:]-ul.T,'L1-AC estimation =',np.reshape(Uad_lpf,(1,nul)))
+        print('k=',k,'ref_pl=',Ref0_l[0:3,0].T,'pl=',pl.T,'norm of vl=',format(Vl[-1],'.2f'),'Eulerl=',np.reshape(57.3*Eulerl,(3)))
+        for i in range(nq):
+            print('k=',k,'quadrotor:',i,'ref_p=',Ref0_xq[i][0:3,0].T,'p=',Quad_State[-1][i][0:3,0].T,'Euler=',np.reshape(57.3*EULERi[i],(3)))
+            print('k=',k,'quadrotor:',i,'ctrl=',uq[i].T)
+            
+        # update the system states using the 'step' function
+        Xq           = np.zeros((nxi,nq))
+        for i in range(nq):
+            Xq[:,i]  = xq[i][:,0]
+        output_l     = stm.step_load(xl, ul, Xq, Jl, rg, dt_sample) # ul
+        pl           = output_l['pl_new']
+        vl           = output_l['vl_new']
+        ql           = output_l['ql_new']
+        wl           = output_l['wl_new']
+        Eulerl       = output_l['Euler_l_new']
+
+        for i in range(nq):
+            xi           = Quad_State[-1][i]
+            ui           = uq[i]
+            # pass the control signal through a low-pass filter to simulate the time-delay effect caused by the motor dynamics
+            wf_coff      = 33 # same as that used in 'NeuroBEM' paper 
+            time_constf  = 1/wf_coff
+            u_prev       = U_prev[i]
+            ui_lpf       = GeoCtrl.lowpass_filter(time_constf,ui,u_prev)
+            U_prev[i]    = ui_lpf
+            output_i     = stm.step_quadrotor(xi, ui_lpf, xl, ul[i,0], i, dt_sample) 
+            pi           = output_i['pi_new']
+            vi           = output_i['vi_new']
+            qi           = output_i['qi_new']
+            wi           = output_i['wi_new']
+            Euleri       = output_i['Euler_i_new']
+            Pi[i]        = pi
+            Vi[i]        = vi
+            Qi[i]        = qi
+            Wi[i]        = wi
+            EULERi[i]    = Euleri
+        time_traj  += dt_sample
+   
+        
+        # save the Evaluation results_para
+        np.save('Evaluation results_para/Quad_State_fig_8_6quad_'+str(mode),Quad_State)
+        np.save('Evaluation results_para/Quad_Control_fig_8_6quad_'+str(mode),Quad_Control)
+        np.save('Evaluation results_para/Load_State_fig_8_6quad_'+str(mode),Load_State)
+        np.save('Evaluation results_para/Tension_Load_Actual_fig_8_6quad_'+str(mode),Tension_Load_Actual)
+        np.save('Evaluation results_para/Tension_Load_MPC_fig_8_6quad_'+str(mode),Tension_Load_MPC)
+        np.save('Evaluation results_para/TIME',TIME)
+        np.save('Evaluation results_para/EULERl_fig_8_6quad_'+str(mode),EULER_l)
+        np.save('Evaluation results_para/Ref_Load_fig_8_6quad_'+str(mode),Ref_Load)
+        np.save('Evaluation results_para/Vl_fig_8_6quad_'+str(mode),Vl)
+        rmsex = format(root_mean_squared_error(STATE_l[0,:],REF_P_l[0,:]),'.3f')
+        rmsey = format(root_mean_squared_error(STATE_l[1,:],REF_P_l[1,:]),'.3f')
+        rmsez = format(root_mean_squared_error(STATE_l[2,:],REF_P_l[2,:]),'.3f')
+        rmsear = format(root_mean_squared_error(EULER_l[0,:],np.zeros((N)))*57.3,'.3f')
+        rmseap = format(root_mean_squared_error(EULER_l[1,:],np.zeros((N)))*57.3,'.3f')
+        rmseay = format(root_mean_squared_error(EULER_l[2,:],np.zeros((N)))*57.3,'.3f')
+        print('rmsex=',rmsex,'rmsey=',rmsey,'rmsez=',rmsez,'rmseagr=',rmsear,'rmseap=',rmseap,'rmseay=',rmseay)
+        rmse = np.array([rmsex,rmsey,rmsez,rmsear,rmseap,rmseay]) 
+        np.save('Evaluation results_para/Rmse_fig_8_6quad_'+str(mode),rmse)
+
+    taks_end_time = (TM.time() - task_start_time)*1000
+    print("s:--- %s ms ---" % format(taks_end_time,'.2f'),'ctrlmode=',ctrlmode)
+    # if not os.path.exists("plots_test"):
+    #     os.makedirs("plots_test")
+    # plotting
+    plt.figure(2,dpi=400)
+    for i in range(nq):
+        Tension_i_actual = []
+        for k in range(N):
+            Tension_i_actual += [Tension_Load_Actual[k][i,0]]
+        plt.plot(TIME,Tension_i_actual,linewidth=1)
+    plt.xlabel('Time [s]')
+    plt.ylabel('Actual tension force [N]')
+    plt.legend(['Cable0', 'Cable1', 'Cable2', 'Cable3'])
+    plt.grid()
+    plt.savefig('Evaluation results_para/cable_actual_tensions_fig_8_6quad_'+str(mode)+'.png',dpi=400)
+    plt.show()
+
+    plt.figure(3,dpi=400)
+    for i in range(nq):
+        Tension_i_MPC = []
+        for k in range(N):
+            Tension_i_MPC += [Tension_Load_MPC[k][i]]
+        plt.plot(TIME,Tension_i_MPC,linewidth=1)
+    plt.xlabel('Time [s]')
+    plt.ylabel('MPC tension force [N]')
+    plt.legend(['Cable0', 'Cable1', 'Cable2', 'Cable3'])
+    plt.grid()
+    plt.savefig('Evaluation results_para/cable_MPC_tensions_fig_8_6quad_'+str(mode)+'.png',dpi=400)
+    plt.show()
+
+    plt.figure(4,dpi=400)
+    plt.plot(TIME,EULER_l[0,:]*57.3,linewidth=1)
+    plt.plot(TIME,EULER_l[1,:]*57.3,linewidth=1)
+    plt.plot(TIME,EULER_l[2,:]*57.3,linewidth=1)
+    plt.xlabel('Time [s]')
+    plt.ylabel('Payload attitude [deg]')
+    plt.legend(['roll', 'pitch', 'yaw'])
+    plt.grid()
+    plt.savefig('Evaluation results_para/payload_attitude_MPC_fig_8_6quad_'+str(mode)+'.png',dpi=400)
+    plt.show()
+
+    fig, (ax1, ax2, ax3) = plt.subplots(3,sharex=True, dpi=400)
+    pxl,  pyl,  pzl   = [], [], []
+    refxl,refyl,refzl = [], [], []
+    t_ref = []
+    for k in range(N):
+        pxl   += [Load_State[k][0,0]]
+        pyl   += [Load_State[k][1,0]]
+        pzl   += [Load_State[k][2,0]]
+        refxl += [Ref_Load[k][0,0]]
+        refyl += [Ref_Load[k][1,0]]
+        refzl += [Ref_Load[k][2,0]]
+        t_ref += [TIME[k]]
+    ax1.plot(t_ref,pxl,linewidth=1)
+    ax1.plot(t_ref,refxl,linewidth=1)
+    ax2.plot(t_ref,pyl,linewidth=1)
+    ax2.plot(t_ref,refyl,linewidth=1)
+    ax3.plot(t_ref,pzl,linewidth=1)
+    ax3.plot(t_ref,refzl,linewidth=1)
+    ax1.set_ylabel('Payload x [m]',labelpad=0)
+    ax2.set_ylabel('Payload y [m]',labelpad=0)
+    ax3.set_ylabel('Payload z [m]',labelpad=0)
+    ax3.set_xlabel('TIme [s]',labelpad=0)
+    ax1.tick_params(axis='x',which='major',pad=0,length=1)
+    ax1.tick_params(axis='y',which='major',pad=0,length=1)
+    ax2.tick_params(axis='x',which='major',pad=0,length=1)
+    ax2.tick_params(axis='y',which='major',pad=0,length=1)
+    ax3.tick_params(axis='x',which='major',pad=0,length=1)
+    ax3.tick_params(axis='y',which='major',pad=0,length=1)
+    leg=ax1.legend(['Actual','Desired'],loc='upper center')
+    leg.get_frame().set_linewidth(0.5)
+    ax1.grid()
+    ax2.grid()
+    ax3.grid()
+    plt.savefig('Evaluation results_para/payload_position_MPC_fig_8_6quad_'+str(mode)+'.png',dpi=400)
+    plt.show()
+
+    plt.figure(6,dpi=400)
+    ax = plt.axes(projection="3d")
+    ax.plot3D(STATE_l[0,:], STATE_l[1,:], STATE_l[2,:], linewidth=1.5)
+    ax.plot3D(REF_P_l[0,:], REF_P_l[1,:], REF_P_l[2,:], linewidth=1, linestyle='--')
+    plt.legend(['Actual', 'Desired'])
+    plt.xlabel('x [m]')
+    plt.ylabel('y [m]')
+    plt.grid()
+    plt.savefig('Evaluation results_para/payload_3D_MPC_fig_8_6quad_'+str(mode)+'.png',dpi=400)
+    plt.show()
+
+if __name__ == '__main__':
+    ### Method 1. multiprocessing + shared memory ###
+    pool = Pool(processes=nq)
+    shm = shared_memory.SharedMemory(create=True, size=buffer_size * ctypes.sizeof(ctypes.c_double))
+    # buffer = np.ndarray((buffer_size,), dtype=ctypes.c_double, buffer=shm.buf)
+
+    Evaluate(shm.name, pool)
+    
+    shm.close()
+    shm.unlink()
+    if pool is not None:
+        pool.close()
+        pool.join()
+    ####################################
+
+    ### Method 2. joblib/dask + shared memory ###
+    # shm = shared_memory.SharedMemory(create=True, size=buffer_size * ctypes.sizeof(ctypes.c_double))
+    # # buffer = np.ndarray((buffer_size,), dtype=ctypes.c_double, buffer=shm.buf)
+
+    # Evaluate(shm.name)
+    
+    # shm.close()
+    # shm.unlink()
+    ####################################
+
+
+    
+
+    
+
+
+            
+
+        
+
+
+    
+
+
+
+
+
+
+    
+    
+
+
+
+
+
+

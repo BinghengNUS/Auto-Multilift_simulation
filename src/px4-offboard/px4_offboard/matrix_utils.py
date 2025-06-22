@@ -57,6 +57,55 @@ def q_to_R(q):
 
     return R
 
+def R_to_q(R):
+    """Converts a rotation matrix to a quaternion.
+
+    Args:
+        R: (3x3 numpy array) rotation matrix
+
+    Returns:
+        q: (4x1 numpy array) quaternion in [w, x, y, z] format
+    """
+    
+    tr = np.trace(R)
+    
+    if tr > 0:
+        S = np.sqrt(1.0 + tr) * 2  # 4q0
+        q0 = 0.25 * S
+        q1 = (R[2, 1] - R[1, 2]) / S
+        q2 = (R[0, 2] - R[2, 0]) / S
+        q3 = (R[1, 0] - R[0, 1]) / S
+    else:
+        if R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
+            S = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2  # 4q1
+            q0 = (R[2, 1] - R[1, 2]) / S
+            q1 = 0.25 * S
+            q2 = (R[0, 1] + R[1, 0]) / S
+            q3 = (R[0, 2] + R[2, 0]) / S
+        elif R[1, 1] > R[2, 2]:
+            S = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2  # 4q2
+            q0 = (R[0, 2] - R[2, 0]) / S
+            q1 = (R[0, 1] + R[1, 0]) / S
+            q2 = 0.25 * S
+            q3 = (R[1, 2] + R[2, 1]) / S
+        else:
+            S = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2  # 4q3
+            q0 = (R[1, 0] - R[0, 1]) / S
+            q1 = (R[0, 2] + R[2, 0]) / S
+            q2 = (R[1, 2] + R[2, 1]) / S
+            q3 = 0.25 * S
+
+    return [q0, q1, q2, q3]
+
+def q_multiply(q1, q2):
+    w1, x1, y1, z1 = q1
+    w2, x2, y2, z2 = q2
+    w = w1*w2 - x1*x2 - y1*y2 - z1*z2
+    x = w1*x2 + x1*w2 + y1*z2 - z1*y2
+    y = w1*y2 - x1*z2 + y1*w2 + z1*x2
+    z = w1*z2 + x1*y2 - y1*x2 + z1*w2
+    
+    return np.array([w, x, y, z])
 
 def R_to_RPY(R):
     """Converts a rotation matrix to Euler angles.

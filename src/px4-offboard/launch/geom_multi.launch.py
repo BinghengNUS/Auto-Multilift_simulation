@@ -17,7 +17,9 @@ def generate_launch_description():
     # Collect all nodes in a list, then return a LaunchDescription at the end.
     nodes = []
     init_timestamp_us = int(Clock().now().nanoseconds / 1000)
-    num_drones = 6
+    num_drones = 3
+    load_radius = 1.0
+    cable_length = 2.0 
 
     # Visualizer node
     nodes.append(
@@ -50,6 +52,9 @@ def generate_launch_description():
                 parameters=[{
                     'init_timestamp': init_timestamp_us,
                     'drone_idx': idx,
+                    'num_drones': num_drones,
+                    'load_radius': load_radius,
+                    'cable_length': cable_length,
                     'altitude': 4.0,
                     # 'trajectory_type': 'hover'
 
