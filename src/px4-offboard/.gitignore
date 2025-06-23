@@ -1,2 +1,5 @@
 *.pyc
 .vscode/*
+/px4_offboard/__pycache__/*
+/px4_offboard/c_generated_*
+/px4_offboard/*.json

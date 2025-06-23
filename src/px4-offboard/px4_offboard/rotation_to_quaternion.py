@@ -3,7 +3,7 @@ import numpy as np
 
 def rotation_matrix_to_quaternion(R):
     """
-    Calculate the quaternion [q0, q1, q2, q3] from the rotation matrix R, where q0 = w, q1 = x, q2 = y, q3 = z.
+    Compute the quaternion [q0, q1, q2, q3] from the rotation matrix R, where q0 = w, q1 = x, q2 = y, q3 = z.
     """
     tr = np.trace(R)
 
