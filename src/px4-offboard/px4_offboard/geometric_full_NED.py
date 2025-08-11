@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 ROSGeomState pose collector for geometric controllers
-Author : Yichao Gao ( 11-Aug 2025 modified)
+Author : Yichao Gao ( 17th-June 2025 modified)
 """
 
 import rclpy
@@ -15,10 +15,12 @@ from rclpy.qos import (
     QoSProfile, QoSHistoryPolicy,
     QoSReliabilityPolicy, QoSDurabilityPolicy,
 )
+import atexit
 import pathlib
+from datetime import datetime
 import numpy as np
 from scipy.spatial.transform import Rotation
-from px4_msgs.msg import VehicleOdometry, VehicleLocalPosition, VehicleLocalPositionSetpoint, VehicleAttitudeSetpoint, TrajectorySetpoint
+from px4_msgs.msg import VehicleOdometry, VehicleLocalPosition, VehicleAttitudeSetpoint, TrajectorySetpoint
 from px4_offboard.matrix_utils import hat, vee, ensure_SO3
 from rclpy.executors import MultiThreadedExecutor
 from px4_offboard.rotation_to_quaternion import rotation_matrix_to_quaternion
@@ -32,8 +34,7 @@ from typing import Tuple
 
 
 NUM_DRONES = 6  # default number of drones
-CTRL_HZ = 100.0  # default control frequency [Hz]
-DATA_HZ = 100.0
+CTRL_HZ = 25.0  # default control frequency [Hz]
 
 # states
 INIT   = 0
@@ -42,8 +43,8 @@ TAKEOFF= 2
 GOTO   = 3
 HOVER  = 4
 TRAJ   = 5
-END_TRAJ   = 6
-LAND   = 7
+LAND   = 6
+DONE   = 7
 
 log_dir = pathlib.Path.home() / "lift_log"
 log_dir.mkdir(exist_ok=True)
@@ -144,49 +145,6 @@ def body_angular_velocity(R_prev: np.ndarray,
     rot_vec = Rotation.from_matrix(delta_R).as_rotvec()   # rad
     return rot_vec / dt      
 
-def limit_tilt(body_z: np.ndarray,
-               max_angle_rad: float,
-               eps: float = 1e-6) -> np.ndarray:
-    """
-    Clamp the angle between body_z and world_z (0,0,1) to max_angle_rad.
-    Returns a *unit* vector.
-    """
-    world_z = np.array([0., 0., 1.])
-    body_z = body_z / np.linalg.norm(body_z)              # ensure unit
-    dot = np.clip(np.dot(body_z, world_z), -1.0, 1.0)
-    angle = np.arccos(dot)
-
-    if angle > max_angle_rad:
-        rejection = body_z - dot * world_z               # component ⟂ world_z
-        if np.dot(rejection, rejection) < eps:           # parallel case
-            rejection = np.array([1., 0., 0.])
-        rejection /= np.linalg.norm(rejection)
-        body_z = (np.cos(max_angle_rad) * world_z +
-                  np.sin(max_angle_rad) * rejection)
-
-    return body_z / np.linalg.norm(body_z)
-
-
-def px4_body_z(acc_sp: np.ndarray,
-               gravity: float = 9.81,
-               decouple: bool = False,
-               max_tilt_deg: float = 45.0) -> np.ndarray:
-    """
-    Re-create PX4 _accelerationControl body_z vector.
-    Unit vector of the body Z-axis expressed in world (NED) frame.
-    """
-    g = gravity
-    z_spec = -g + (0.0 if decouple else acc_sp[2])
-    vec = np.array([-acc_sp[0], -acc_sp[1], -z_spec])
-
-    if np.allclose(vec, 0):
-        vec[2] = 1.0  # safety
-
-    body_z = vec / np.linalg.norm(vec)
-
-    body_z = limit_tilt(body_z, np.deg2rad(max_tilt_deg))
-    return body_z
-
 class FirstOrderLowPass:
     def __init__(self, cutoff_hz: float):
         self.tau = 1.0 / (2.0 * math.pi * cutoff_hz)   
@@ -202,48 +160,6 @@ class FirstOrderLowPass:
         alpha = dt / (self.tau + dt)   
         self.y = alpha * x + (1.0 - alpha) * self.y
         return self.y
-    
-
-class SecondOrderButterworth:
-    def __init__(self, cutoff_hz: float):
-        self.fc      = cutoff_hz          
-        self.x_hist  = [None, None]       
-        self.y_hist  = [None, None]       
-        self.b, self.a = None, None      
-
-    def _compute_coeffs(self, dt):
-        w0 = 2.0 * math.pi * self.fc
-        k  = w0 * dt
-        k2 = k * k
-
-        # Butterworth ζ = √2/2
-        a0 = k2 + math.sqrt(2) * k + 1
-        self.b = np.array([k2, 2*k2, k2]) / a0
-        self.a = np.array([1.0,
-                           2.0*(k2 - 1)/a0,
-                           (k2 - math.sqrt(2)*k + 1)/a0])
-
-    def reset(self, x0: np.ndarray):
-        self.x_hist = [np.array(x0, copy=True), np.array(x0, copy=True)]
-        self.y_hist = [np.array(x0, copy=True), np.array(x0, copy=True)]
-
-    def __call__(self, x: np.ndarray, dt: float) -> np.ndarray:
-        if self.x_hist[0] is None:
-            self.reset(x)
-            return x
-        if self.b is None:
-            self._compute_coeffs(dt)
-        y = ( self.b[0] * x
-            + self.b[1] * self.x_hist[0]
-            + self.b[2] * self.x_hist[1]
-            - self.a[1] * self.y_hist[0]
-            - self.a[2] * self.y_hist[1] )
-        self.x_hist[1] = self.x_hist[0]
-        self.x_hist[0] = x
-        self.y_hist[1] = self.y_hist[0]
-        self.y_hist[0] = y
-        return y
-
 
 
 class AccKalmanFilter:
@@ -253,7 +169,7 @@ class AccKalmanFilter:
       Measure position only.
     """
     def __init__(self,
-                 dt_init: float = 1/CTRL_HZ,
+                 dt_init: float = 0.04,
                  q_var: float = 1e-5,   # process noise (accel)
                  r_var: float = 2e-5    # measurement noise (pos)
                  ):
@@ -373,8 +289,7 @@ class ROSGeomState(Node):
         self.prev_payload_vel      = None
         self.prev_vel_time         = None
         self.kf                    = AccKalmanFilter(dt_init=1.0 / CTRL_HZ)
-        # self.fof                   = FirstOrderLowPass(cutoff_hz=10.0)
-        self.fof = SecondOrderButterworth(cutoff_hz=20.0)
+        self.fof                   = FirstOrderLowPass(cutoff_hz=10.0)
 
         #  drone state (lists) 
         self.n              = num_drones
@@ -480,6 +395,7 @@ class ROSGeomState(Node):
         self.prev_vel_time = now
         self.prev_payload_pos = self.payload_pos
         self.prev_payload_R = self.payload_R
+        # print(f"-----------payload-----R={self.payload_R}-----omega={self.payload_ang_v}")
         self._check_ready()
 
     def _cb_drone_pose(self, msg: PoseStamped, idx: int) -> None:
@@ -568,8 +484,6 @@ class GeomLiftCtrl(Node):
                  state_node: ROSGeomState | None = None):
         super().__init__("geom_lift_ctrl")
 
-        self.drone_acc_sp  = [None] * n
-
         # QoS
         reliable_qos = QoSProfile(history=QoSHistoryPolicy.KEEP_LAST,
                           depth=1)
@@ -583,22 +497,6 @@ class GeomLiftCtrl(Node):
             reliability=QoSReliabilityPolicy.RELIABLE,
             durability=QoSDurabilityPolicy.VOLATILE,
         )
-
-        lps_qos = QoSProfile(
-            history     = QoSHistoryPolicy.KEEP_LAST,
-            depth       = 1,                              
-            reliability = QoSReliabilityPolicy.BEST_EFFORT,  
-            durability  = QoSDurabilityPolicy.TRANSIENT_LOCAL  
-        )
-
-        #--- subscribers ----------------------------------------------
-        for idx in range(n):
-            lps_topic   = '/fmu/out/vehicle_local_position_setpoint' if idx == 0   \
-                         else f'/px4_{idx}/fmu/out/vehicle_local_position_setpoint'
-
-            self.create_subscription(
-                VehicleLocalPositionSetpoint, lps_topic,
-                lambda msg, i=idx: self._cb_drone_local_position_setpoint(msg, i), lps_qos)
 
         #--- publishers ----------------------------------------------
         self.pub_att = [
@@ -637,11 +535,10 @@ class GeomLiftCtrl(Node):
         
 
         #--- physical parameters (edit for real hardware) ------------
-        self.payload_m = 1.50
-        self.m_drones = 0.250      # drone mass    [kg]
-        # self.max_thrust = 2.58 * self.m_drones * 9.81    # for 1kg drone
-        self.max_thrust = 8.0 * self.m_drones * 9.81  # max thrust per drone [N] for 250g drone
-        self.l    = 1.0         # cable length   [m]
+        self.payload_m = 3.0     # payload mass  [kg]
+        self.m_drones = 1.0      # drone mass    [kg]
+        self.max_thrust = 2.85 * self.m_drones * 9.81    # TODO: test the thrust of the modified Iris drone
+        self.l    = 1.25         # cable length   [m]
         self.g    = np.array([0.0, 0.0, 9.81])
         
         # link-attachment points on the payload body frame
@@ -649,8 +546,8 @@ class GeomLiftCtrl(Node):
         self.offset_r = self.l + self.payload_r
         self.offset_pos = []
 
-        # self.J_p  = cylinder_inertia(m=self.payload_m, r_outer=self.payload_r, h=self.payload_r/4)
-        self.J_p = np.array([0.05, 0.05, 0.1])
+        self.J_p  = cylinder_inertia(m=self.payload_m, r_outer=self.payload_r, h=self.payload_r/4)
+        # self.J_p = np.array([0.25, 0.25, 0.25])
         self.rho = []  # list of (3,) vectors
 
         for i in range(NUM_DRONES):
@@ -677,9 +574,7 @@ class GeomLiftCtrl(Node):
         self.t_prev = None        
         self.t0     = None  
         self.sim_t_prev = None
-        self.sim_t0 = None   
-        self.traj_t0 = None          
-        self.traj_duration = 6.0  
+        self.sim_t0 = None     
         self.x_start = None 
         self.t_wait_traj = 0.0
         self.create_timer(self.dt_nom, self._step)
@@ -688,42 +583,53 @@ class GeomLiftCtrl(Node):
 
         # desired values initialization
         self.x_id = np.zeros((self.n, 3))
-        self.v_id = np.zeros((self.n, 3))
         self.mu_id = np.zeros((self.n, 3))  # desired force on each drone
         self.q_id = np.zeros((self.n, 3))    # desired cable direction
         self.omega_id = np.zeros((self.n, 3))  # desired angular velocity of each drone
         self.omega_id_dot = np.zeros((self.n, 3))  # desired angular acceleration of each drone
         self.b1d = np.array([1, 0, 0])  
 
-
-        # first order lowpass
-        # self.mu_id_dot_f = FirstOrderLowPass(cutoff_hz=8.0)
-        # self.mu_id_ddot_f = FirstOrderLowPass(cutoff_hz=8.0)
-        # self.Omega_0_dot_f = FirstOrderLowPass(cutoff_hz=10.0)
-        # self.mu_f = [FirstOrderLowPass(cutoff_hz=20.0)   for _ in range(self.n)]
-        # second order butterworth filter
-        self.mu_id_dot_f = SecondOrderButterworth(cutoff_hz=10.0)
-        self.mu_id_ddot_f = SecondOrderButterworth(cutoff_hz=10.0)
-        self.Omega_0_dot_f = SecondOrderButterworth(cutoff_hz=18.0)
-        self.mu_f = [SecondOrderButterworth(cutoff_hz=20.0)   for _ in range(self.n)]
-
+        self.mu_id_dot_f = FirstOrderLowPass(cutoff_hz=10.0)
+        self.mu_id_ddot_f = FirstOrderLowPass(cutoff_hz=10.0)
+        self.Omega_0_dot_f = FirstOrderLowPass(cutoff_hz=15.0)
+        self.mu_f = [FirstOrderLowPass(cutoff_hz=15.0)   for _ in range(self.n)]
 
         #--- control gains (PD only ) --------------------
-        self.kq = 10.0
-        self.kw = 3.20
-        self.z_weight = 0.380    # weight for the geometric control z axis
+        # self.kx = np.array([20.0,20.0,5.8])
+        # self.kv = np.array([25.8,25.8,4.8])
 
+        # self.kR = np.array([5.5,5.5,5.8])
+        # self.kO = np.array([1.6,1.6,3.8])
+
+        # self.kx = np.array([6.8,6.8,5.8])
+        # self.kv = np.array([8.8,8.8,3.8])
+
+        # self.kR = np.array([5.2,5.2,5.6])
+        # self.kO = np.array([4.6,4.6,4.8])
+
+        # Translational gains
+        self.kx = np.array([0.9, 0.9, 1.0])   
+        self.kv = np.array([0.4, 0.4, 0.5])   
+
+        # Rotational gains
+        # self.kR = np.array([1.9, 1.9, 0.70])   
+        self.kR = np.array([1.9, 1.9, 0.30]) 
+        self.kO = np.array([1.0, 1.0, 0.10])   
+
+
+
+        self.kq = 12.8
+        self.kw = 3.5
 
         self.k_ddp = np.zeros((6,13))
         # self.alpha = 0.0       # DDP feedback gain 
-        self.alpha = 0.10
+        self.alpha = 1.0
 
-        # self.slowdown = 1.25     # for test only, no slowdown
-        self.slowdown = 1.0     # no slowdown
+        self.slowdown = 1.0     # for test only, no slowdown
 
-        self.thrust_bias = 0.0
+        self.thrust_bias = 0.05
 
-        self.time_switch = 6.0
+        self.time_switch = 4.0
 
         self.T_enu2ned = np.array([[0, 1, 0],
             [1, 0, 0],
@@ -737,22 +643,13 @@ class GeomLiftCtrl(Node):
 
 
         self.x_id_final = np.zeros((self.n, 3))  # final desired position of each drone
-        q_init = [1.0, 0.0, 0.0, 0.0]
-    
-        self.drone_q_prev = [None] * self.n  # previous drone quaternions
-
-        z_column   = np.full((NUM_DRONES, 1), -0.80)  # (N, 1)
-        self.dirs_final = np.hstack((self.rho[:, :2], z_column))   # (N, 3)
-
         for i in range(self.n):
-            self.drone_q_prev[i] = q_init  # previous drone quaternions
-            # self.x_id_final[i] = self.T_enu2ned @ self.trajectory_ENU.payload_x[-1, :] + self.rho[i] + self.l * self.dirs_final[i] / np.linalg.norm(self.dirs_final[i]) - self.offset_pos[i]
-            self.x_id_final[i] = self.T_enu2ned @ self.trajectory_ENU.payload_x[-1, :] + self.rho[i] + self.l * self.T_enu2ned @ self.trajectory_ENU.cable_direction[i, -1, :] - self.offset_pos[i]  # final desired position of each drone
+            self.x_id_final[i] = self.T_enu2ned @ self.trajectory_ENU.payload_x[99, :] + self.rho[i] + self.l * self.T_enu2ned @ self.trajectory_ENU.cable_direction[i, 99, :] - self.offset_pos[i]
         print(f"Final desired position of each drone: {self.x_id_final}")
         # flag
         self.traj_ready = False
-        self.traj_done = False
-        self.traj_done_bit = np.zeros(self.n, dtype=bool)
+
+        
         
         self.t_log = None
 
@@ -769,10 +666,6 @@ class GeomLiftCtrl(Node):
         }
 
         atexit.register(self._save_log)
-    
-    def _cb_drone_local_position_setpoint(self, msg: VehicleLocalPositionSetpoint, idx: int) -> None:
-        # NED frame
-        self.drone_acc_sp[idx] = np.array(msg.acceleration, float)
 
     def _save_log(self):
         if not self.log['t']:           
@@ -796,99 +689,166 @@ class GeomLiftCtrl(Node):
 
     
     def _desired(self, t: float) -> None:
-        idx = int(round(t / ((1/DATA_HZ) * self.slowdown)))
-        idx = np.clip(idx, 0, self.trajectory_ENU.cable_direction.shape[1] - 2)
-        idx_len = self.trajectory_ENU.cable_direction.shape[1] - 2
-        state_idx =  idx 
-        dirs_enu =  self.trajectory_ENU.cable_direction[:, state_idx, :]   # shape: (6, 3), xl - xq
-        mu_enu = self.trajectory_ENU.cable_mu[:, state_idx]                  # shape: (6,) scalar
-        omega_enu = self.trajectory_ENU.cable_omega[:, state_idx, :]
-        omega_enu_dot = self.trajectory_ENU.cable_omega_dot[:, idx, :]
+        if t <= self.time_switch * self.slowdown:
+            idx = int(round(t / (0.04 * self.slowdown)))
+            idx = np.clip(idx, 0, self.trajectory_ENU.cable_direction.shape[1] - 2)
+            # print(idx)
+            dirs_enu =  self.trajectory_ENU.cable_direction[:, idx, :]   # shape: (6, 3), xl - xq
+            mu_enu = self.trajectory_ENU.cable_mu[:, idx]                  # shape: (6,) scalar
+            omega_enu = self.trajectory_ENU.cable_omega[:, idx, :]
+            omega_enu_dot = self.trajectory_ENU.cable_omega_dot[:, idx, :]
 
-        # DDP feedback gain
-        self.k_ddp = self.trajectory_ENU.Kb[idx]
-        # desired attitude
-        payload_q_d_ENU = self.trajectory_ENU.payload_q[state_idx, :]   # w, x, y, z
-        payload_q_ENU = [self.state.payload_q.w, self.state.payload_q.x, self.state.payload_q.y, self.state.payload_q.z]    # x, y, z, w
-        R_ENU_d = self.trajectory_ENU.quat_2_rot(payload_q_d_ENU)   # {B} 2 {I}
-        # self.R_d = self.T_body @ R_ENU_d @ self.T_enu2ned
-        self.R_d = self.T_body @ np.eye(3) @ self.T_enu2ned
-        # self.Omega_0_d = self.T_body @ self.trajectory_ENU.payload_w[state_idx, :]  # (3,) under FRD frame
-        self.Omega_0_d = np.zeros(3)
-        Omega_0_d_ENU = self.trajectory_ENU.payload_w[state_idx, :]   # BODY frame
-        self.Omega_0_d_hat = hat(self.Omega_0_d)  # (3, 3) skew-symmetric matrix
-        self.R_d_dot = self.Omega_0_d_hat @ self.R_d
+            # DDP feedback gain
+            self.k_ddp = self.trajectory_ENU.Kb[idx]
+            # desired attitude
+            payload_q_d_ENU = self.trajectory_ENU.payload_q[idx, :]   # w, x, y, z
+            payload_q_ENU = [self.state.payload_q.w, self.state.payload_q.x, self.state.payload_q.y, self.state.payload_q.z]    # x, y, z, w
+            # print(payload_q_d_ENU, payload_q_ENU)
+            R_ENU_d = self.trajectory_ENU.quat_2_rot(payload_q_d_ENU)   # {B} 2 {I}
+            self.R_d = self.T_body @ R_ENU_d @ self.T_enu2ned
+            self.Omega_0_d = self.T_body @ self.trajectory_ENU.payload_w[idx, :]  # (3,) under FRD frame
+            Omega_0_d_ENU = self.trajectory_ENU.payload_w[idx, :]   # BODY frame
 
-        self.x_d = self.T_enu2ned @ self.trajectory_ENU.payload_x[state_idx, :]  # NED frame
-        self.v_d = self.T_enu2ned @ self.trajectory_ENU.payload_v[state_idx, :]  # NED frame
 
-        # #DEBUG: test the kq and kw
-        # self.x_d = np.array([0.0, 0.0, -0.0])
-        # self.v_d = np.zeros(3)
-        # self.k_ddp = np.zeros((6, 13))
-        # self.R_d = np.eye(3)
-        # if t >= 4.0 * self.slowdown:
-        #     self.x_d = self.T_enu2ned @ self.trajectory_ENU.payload_x[99, :]
-        #     self.v_d = np.array([0.0, 0.0, 0.0])  # desired velocity
-        # self.a_d = self.T_enu2ned @ self.trajectory_ENU.payload_a[idx, :]  
-        # self.j_d = np.array([0.0, 0.0, 0.0])  # desired jerk
+            self.x_d = self.T_enu2ned @ self.trajectory_ENU.payload_x[idx, :]  # NED frame
+            self.v_d = self.T_enu2ned @ self.trajectory_ENU.payload_v[idx, :]  # NED frame
+            # if t >= 4.0 * self.slowdown:
+            #     self.x_d = self.T_enu2ned @ self.trajectory_ENU.payload_x[99, :]
+            #     self.v_d = np.array([0.0, 0.0, 0.0])  # desired velocity
+            # self.a_d = self.T_enu2ned @ self.trajectory_ENU.payload_a[idx, :]  
+            self.j_d = np.array([0.0, 0.0, 0.0])  # desired jerk
 
-        # error (for original geometric control)
-        self.e_x = self.x_0 - self.x_d  # NED frame
-        self.e_v = self.v_0 - self.v_d  # velocity error
-        e_x_ENU = self.T_enu2ned @ self.e_x # ENU frame
-        e_v_ENU = self.T_enu2ned @ self.e_v
-        e_q_ENU = payload_q_ENU - payload_q_d_ENU   # NOTE: use the subtraction of quaternions directly
-        self.e_R_0 = 0.5 * vee(self.R_d.T @ self.R_0 - self.R_0.T @ self.R_d )  # rotation error
-        self.e_Omega_0 = self.Omega_0 - self.R_0.T @ self.R_d @ self.Omega_0_d  # angular velocity error
-        e_Omega_0_ENU = self.T_body @ self.Omega_0 - Omega_0_d_ENU
-        e_ddp_ENU = np.concatenate((e_x_ENU, e_v_ENU, e_q_ENU, e_Omega_0_ENU))
+            # error (for original geometric control)
+            self.e_x = self.x_0 - self.x_d  # NED frame
+            self.e_v = self.v_0 - self.v_d  # velocity error
+            e_x_ENU = self.T_enu2ned @ self.e_x # ENU frame
+            e_v_ENU = self.T_enu2ned @ self.e_v
+            e_q_ENU = payload_q_ENU - payload_q_d_ENU   # NOTE: use the subtraction of quaternions directly
+            self.e_R_0 = 0.5 * vee(self.R_d.T @ self.R_0 - self.R_0.T @ self.R_d )  # rotation error
+            self.e_Omega_0 = self.Omega_0 - self.R_0.T @ self.R_d @ self.Omega_0_d  # angular velocity error
+            e_Omega_0_ENU = self.T_body @ self.Omega_0 - Omega_0_d_ENU
+            e_ddp_ENU = np.concatenate((e_x_ENU, e_v_ENU, e_q_ENU, e_Omega_0_ENU))
+            if self.t_log is None or t - self.t_log > 0.1:
+                print(f'Trajectory Time {t}')
+                print(f'error x: {e_x_ENU}')
+                print(f'error v: {e_v_ENU}')
+                print(f'error q: {e_q_ENU}')
+                print(f'error w: {e_Omega_0_ENU}')
+                self.t_log = t
+            
+            weight_decay = 1.0 - np.clip(((self.time_switch - 1.0) * self.slowdown - t )/1.00, 0.0, 1.0)
+            # if t > (self.time_switch - 0.1) * self.slowdown:
+            #     weight_decay = 1.0
+            
+            FM_BODY = self.alpha * weight_decay * self.k_ddp @ e_ddp_ENU   # need to make sure that this should under the ENU frame
+            F_BODY = FM_BODY[0:3]
+            M_BODY = FM_BODY[3:6]
+            F_FRD = self.T_body @ F_BODY
+            M_FRD = self.T_body @ M_BODY
+            FM_FRD = np.concatenate((F_FRD, M_FRD))
+            P_pseudo = self.P.T @ np.linalg.inv(self.P @ self.P.T)  # This is under NED frame
+            delta_mu_FRD = P_pseudo @ FM_FRD
+            
+            # desired 
+            for i in range(self.n):
+                self.q_id[i] = self.T_enu2ned @ dirs_enu[i]    # (6, 3) q is point down
+                # print(f'q_id[{i}]',self.q_id[i])
+                self.mu_id[i] = mu_enu[i] * self.q_id[i] + self.R_0 @ delta_mu_FRD[i*3:i*3+3]  
+                # self.mu_id[i] = self.mu_f[i](self.mu_id[i], self.sim_dt) 
+                self.q_id[i] = - self.mu_id[i] / np.linalg.norm(self.mu_id[i])
+                # print(f'Drone {i} cable direction: {self.q_id[i]}')
+                self.omega_id[i] = self.T_enu2ned @ omega_enu[i, :]  # (6, 3)
+                self.omega_id_dot[i] = self.T_enu2ned @ omega_enu_dot[i, :]
+                self.x_id[i] = self.x_d + self.R_d @ self.rho[i] - self.l * self.q_id[i] - self.offset_pos[i]
+
+                # if t >= 3.5 * self.slowdown:
+                #     for i in range(self.n):
+                #         self.x_id[i] = self.x_id_final[i]  # set the final position of each drone
+                # if idx == 30:
+                #     breakpoint()
+                # breakpoint()
+                # print(self.x_id)
+
+        # The original geometric control after 4s 
+        if t >= self.time_switch * self.slowdown:
+            if not hasattr(self, "_stop_planner"):     # first time entering brake
+                # capture current payload state (nonzero v,a allowed)
+                p0 = self.x_0.copy()
+                v0 = self.v_0.copy()                  
+                a0 = self.a_0.copy()                   
+                xf = np.array([3.00, 3.00, -0.50])     # target (NED)
+
+                self._stop_planner = StopTrajPlanner(
+                    x0 = p0,
+                    xf = xf,
+                    T_b = (4.5 - self.time_switch) * self.slowdown,
+                    v0 = v0,                            
+                    a0 = a0,                            
+                )
+                self._t_stop0 = t
+
+            tau = t - self._t_stop0
+
+            if tau >= self._stop_planner.T:
+                # hold exactly at planner.xf (avoid typos & drift)
+                self.x_d = self._stop_planner.xf.copy()  
+                self.v_d = self.a_d = np.zeros(3)
+            else:
+                self.x_d, self.v_d, self.a_d = self._stop_planner.polyval(tau)
+
+
+            self.j_d  = np.array([0.0, 0.0, 0.0])  # desired jerk
+            self.R_d = np.eye(3)  # identity rotation
+            self.Omega_0_d = np.zeros(3)
+            self.Omega_0_d_dot = np.zeros(3)
+            # compute errors
+            self.e_x = self.x_0 - self.x_d
+            self.e_v = self.v_0 - self.v_d  # velocity error
+            self.e_R_0 = 0.5 * vee(self.R_d.T @ self.R_0 - self.R_0.T @ self.R_d )  # rotation error
+            self.e_Omega_0 = self.Omega_0 - self.R_0.T @ self.R_d @ self.Omega_0_d  # angular velocity error
+
+            # compute desired forces and torques 
+            self.F_d = self.payload_m * (-self.g + self.a_d - self.kx * self.e_x - self.kv * self.e_v)  # desired force on payload
+            # print(f"F_d : {self.F_d}")
+            self.M_d = (
+                -self.kR * self.e_R_0 - self.kO * self.e_Omega_0
+                + hat(self.R_0.T @ self.R_d @ self.Omega_0_d) @ self.J_p @ self.R_0.T @ self.R_d @ self.Omega_0_d
+                + self.J_p @ self.R_0.T @ self.R_d @ self.Omega_0_d_dot
+            )
+
+            z = self.P.T @ np.linalg.inv(self.P @ self.P.T) @ np.hstack(( self.R_0.T @ self.F_d,  self.M_d )) 
+            self.mu_id = np.array([ self.R_0 @ z[3*i:3*i+3] for i in range(self.n) ])
+            self.q_id = np.array([ -self.mu_id[i] / np.linalg.norm(self.mu_id[i]) for i in range(self.n) ])
+            if not hasattr(self, "mu_id_prev"):          # first iteration
+                self.mu_id_prev = self.mu_id.copy()
+                self.mu_id_dot  = np.zeros_like(self.mu_id)
+            else:
+                mu_id_dot  = (self.mu_id - self.mu_id_prev) / self.sim_dt
+                self.mu_id_dot = self.mu_id_dot_f(mu_id_dot, self.sim_dt)
+                self.mu_id_prev = self.mu_id.copy()
+            
+            if not hasattr(self, "mu_id_dot_prev"):          # first iteration
+                self.mu_id_dot_prev = self.mu_id_dot.copy()
+                self.mu_id_ddot  = np.zeros_like(self.mu_id)
+            else:
+                mu_id_ddot  = (self.mu_id_dot - self.mu_id_dot_prev) / self.sim_dt
+                self.mu_id_ddot = self.mu_id_ddot_f(mu_id_ddot, self.sim_dt)
+                self.mu_id_dot_prev = self.mu_id_dot.copy()
+            proj = np.eye(3)[None,:,:] - np.einsum('ij,ik->ijk', self.q_id, self.q_id)
+            self.q_id_dot = -np.einsum('ijk,ik->ij', proj, self.mu_id_dot) / np.linalg.norm(self.mu_id, axis=1, keepdims=True)
+            self.omega_id = np.cross(self.q_id, self.q_id_dot)
+            P_dot = - ( np.einsum('ij,ik->ijk', self.q_id_dot, self.q_id) + np.einsum('ij,ik->ijk', self.q_id,     self.q_id_dot) )
+            L     = np.linalg.norm(self.mu_id,      axis=1, keepdims=True)                   # (n,1)
+            L_dot = np.einsum('ij,ij->i', self.mu_id, self.mu_id_dot)[:,None] / L            # (n,1)
+            term1 = np.einsum('ijk,ik->ij', P_dot,    self.mu_id_dot)                      # P' * mu_dot
+            term2 = np.einsum('ijk,ik->ij', proj,        self.mu_id_ddot)                     # P  * mu_ddot
+            term3 = (proj @ self.mu_id_dot[:,:,None])[:,:,0] * (L_dot / L)                    # (P*mu_dot)*(L_dot/L)
+            self.q_id_ddot = - (term1 + term2) / L + term3    
+            self.omega_id_dot = np.cross(self.q_id_dot, self.q_id_ddot)
+            for i in range(self.n):
+                self.x_id[i] = self.x_d + self.R_d @ self.rho[i] - self.l * self.q_id[i] - self.offset_pos[i]
+                # self.x_id[i] = self.x_id_final[i]
         
-        FM_BODY = self.alpha * self.k_ddp @ e_ddp_ENU   # need to make sure that this should under the ENU frame
-        F_BODY = FM_BODY[0:3]
-        M_BODY = FM_BODY[3:6]
-        F_FRD = self.T_body @ F_BODY
-        M_FRD = self.T_body @ M_BODY
-        FM_FRD = np.concatenate((F_FRD, M_FRD))
-        P_pseudo = self.P.T @ np.linalg.inv(self.P @ self.P.T)  # This is under NED frame
-        delta_mu_FRD = P_pseudo @ FM_FRD
-        
-        # desired 
-        for i in range(self.n):
-            self.q_id[i] = self.T_enu2ned @ dirs_enu[i]    # (6, 3) q is point down
-            self.mu_id[i] = mu_enu[i] * self.q_id[i] + self.R_0 @ delta_mu_FRD[i*3:i*3+3]  
-            self.q_id[i] = - self.mu_id[i] / np.linalg.norm(self.mu_id[i])
-            self.omega_id_dot[i] = self.T_enu2ned @ omega_enu_dot[i, :]
-        if not hasattr(self, "mu_id_prev"):          # first iteration
-            self.mu_id_prev = self.mu_id.copy()
-            self.mu_id_dot  = np.zeros_like(self.mu_id)
-        else:
-            mu_id_dot  = (self.mu_id - self.mu_id_prev) / self.sim_dt
-            self.mu_id_dot = self.mu_id_dot_f(mu_id_dot, self.sim_dt)
-            self.mu_id_prev = self.mu_id.copy()
-        
-        if not hasattr(self, "mu_id_dot_prev"):          # first iteration
-            self.mu_id_dot_prev = self.mu_id_dot.copy()
-            self.mu_id_ddot  = np.zeros_like(self.mu_id)
-        else:
-            mu_id_ddot  = (self.mu_id_dot - self.mu_id_dot_prev) / self.sim_dt
-            self.mu_id_ddot = self.mu_id_ddot_f(mu_id_ddot, self.sim_dt)
-            self.mu_id_dot_prev = self.mu_id_dot.copy()
-        proj = np.eye(3)[None,:,:] - np.einsum('ij,ik->ijk', self.q_id, self.q_id)
-        self.q_id_dot = -np.einsum('ijk,ik->ij', proj, self.mu_id_dot) / np.linalg.norm(self.mu_id, axis=1, keepdims=True)
-        self.omega_id = np.cross(self.q_id, self.q_id_dot)
-        P_dot = - ( np.einsum('ij,ik->ijk', self.q_id_dot, self.q_id) + np.einsum('ij,ik->ijk', self.q_id,     self.q_id_dot) )
-        L     = np.linalg.norm(self.mu_id,      axis=1, keepdims=True)                   # (n,1)
-        L_dot = np.einsum('ij,ij->i', self.mu_id, self.mu_id_dot)[:,None] / L            # (n,1)
-        term1 = np.einsum('ijk,ik->ij', P_dot,    self.mu_id_dot)                      # P' * mu_dot
-        term2 = np.einsum('ijk,ik->ij', proj,        self.mu_id_ddot)                     # P  * mu_ddot
-        term3 = (proj @ self.mu_id_dot[:,:,None])[:,:,0] * (L_dot / L)                    # (P*mu_dot)*(L_dot/L)
-        self.q_id_ddot = - (term1 + term2) / L + term3    
-        self.omega_id_dot = np.cross(self.q_id_dot, self.q_id_ddot)
-
-        for i in range(self.n):
-            self.x_id[i] = self.x_d + self.R_d @ self.rho[i] - self.l * self.q_id[i] - self.offset_pos[i]
-            self.v_id[i] = (self.v_d + self.R_d_dot @ self.rho[i] - self.l * self.q_id_dot[i])  
 
     def _step(self) -> None:
         snap = self.state.get_state()
@@ -896,10 +856,12 @@ class GeomLiftCtrl(Node):
             return  # not ready yet
         
         self.fsm_states = [drone["state"] for drone in snap["drones"]]
+        # print(f"Drone states: {self.states}")
         
         t_now = self.get_clock().now().nanoseconds * 1e-9   
         self.sim_time = self.state.sim_time
         self.check_state(self.sim_time)
+        # print(f"Drone states: {self.fsm_states}")
         if not self.traj_ready:
             return
         if self.t_prev is None:            
@@ -923,14 +885,19 @@ class GeomLiftCtrl(Node):
             raw_dt   = self.sim_time - self.sim_t_prev
             self.sim_dt = max(4e-5, raw_dt)        
             self.sim_t_prev = self.sim_time
-        sim_t_rel = self.sim_time - self.sim_t0
+
+        sim_t_rel = self.sim_time - self.sim_t0 
+        
 
         #---- payload state ----
         self.x_0  = snap["payload"]["pos"]      # (3,)
         self.R_0  = snap["payload"]["R"]        # (3,3)
         self.v_0  = snap["payload"]["vel"]      # (3,)
+        # print(f"payload v {self.v_0}")
         self.a_0 = snap["payload"]["lin_acc"]  # (3,)
+        # self.a_0 = 0
         self.Omega_0  = snap["payload"]["omega"]      # (3,)
+        # print(f"----------------payload_omega----------{self.Omega_0}--------------")
         self.Omega_0_hat = hat(self.Omega_0)  # (3,3)
         self.R_0_dot = self.R_0 @ self.Omega_0_hat
         if not hasattr(self, "omega_0_prev"):
@@ -945,6 +912,7 @@ class GeomLiftCtrl(Node):
 
         #---- drone states ----
         drones = snap["drones"]
+        # q   = np.zeros((self.n, 3))
         mu = np.zeros((self.n, 3))
         a = np.zeros((self.n, 3))
         u_parallel = np.zeros((self.n, 3))
@@ -968,6 +936,7 @@ class GeomLiftCtrl(Node):
             x_i = drone['pos']                   # (3,)
             Omega_i = drone['omega']             # (3,)
             v_i = drone['vel']                   # (3,)
+            # print(f"drone {i} v : {v_i}")
             R_i = drone['R']                     # (3,3)
             # compute raw cable vector and normalize to unit q
             vec =   - x_i + self.x_0 + self.R_0 @ self.rho[i]   # vector from attach point to drone
@@ -981,6 +950,7 @@ class GeomLiftCtrl(Node):
                 + self.R_0 @ (self.Omega_0_hat @ (self.Omega_0_hat @ self.rho[i]))
                 - self.R_0 @ hat(self.rho[i]) @ self.omega_0_dot
             )
+            # print(f"Drone {i}: a: {a[i]}")
             omega_i = np.cross(q_i, q_i_dot)
             omega_sq = np.dot(omega_i, omega_i) 
             # compute u parallel 
@@ -989,11 +959,15 @@ class GeomLiftCtrl(Node):
                 + self.m_drones * self.l * omega_sq * q_i
                 + self.m_drones * (np.dot(q_i, a[i]) * q_i)
             )
+            # print(f"Drone {i}: u_parallel: {u_parallel[i]}")
 
             # compute u vertical 
             e_qi = np.cross(q_d[i], q_i)
-            q_i_hat_sqr = q_i_hat @ q_i_hat  # (3,3) outer product of q_i
+            # print(f"Drone {i}: q_d: {q_d[i]}, q_i: {q_i}, e_qi: {e_qi}")
+            q_i_hat_sqr = np.dot(q_i_hat , q_i_hat)  # (3,3) outer product of q_i
             e_omega_i = omega_i + q_i_hat_sqr @ omega_id[i]
+            # print(f"e_omega_i:{e_omega_i}")
+            
             u_vertical[i] = self.m_drones * self.l * q_i_hat @ (
                 - self.kq * e_qi 
                 - self.kw * e_omega_i 
@@ -1004,50 +978,54 @@ class GeomLiftCtrl(Node):
             u[i] = u_parallel[i] + u_vertical[i]
             if np.linalg.norm(u[i]) < 1e-3:
                 continue 
+            # print(f"u[{i}] = {u[i]}, u_parallel = {u_parallel[i]}, u_vertival = {u_vertical[i]}")
 
             # compute thrust
             b3[i] = - u[i] / np.linalg.norm(u[i])  # unit vector along thrust
-            body_z = px4_body_z(acc_sp = self.drone_acc_sp[i])
-            fused_z = ((1 - self.z_weight) * body_z + self.z_weight * b3[i]) / np.linalg.norm(((1 - self.z_weight) * body_z + self.z_weight * b3[i]))
-            
+            # print("b3i",b3[i])
+            # print(f"Drone {i}: b3: {b3[i]}")
+
             # thrust
             f_i =  - u[i] @ (R_i @ np.array([0, 0, 1]))
-           
-            A2 = np.cross(b3[i], fused_z)
+            # print(R_i)
+
+            # attitude
+            A2 = np.cross(b3[i], self.b1d)
             b2c = A2 / np.linalg.norm(A2)
-            A1 = np.cross(b2c, fused_z)
+            A1 = np.cross(b2c, b3[i])
             b1c = A1 / np.linalg.norm(A1)
-            R_ic = np.column_stack((b1c, b2c, fused_z))
+            R_ic = np.column_stack((b1c, b2c, b3[i]))
             ensure_SO3(R_ic)
+
+            # print control reference for debugging
             ts_us = int(self.get_clock().now().nanoseconds // 1000)
             att = VehicleAttitudeSetpoint()
             att.timestamp = ts_us
-            q_new = rotation_matrix_to_quaternion(R_ic)
-            q_new = np.asarray(q_new, dtype=np.float32).reshape(4,)  
-            if self.drone_q_prev[i] is None:
-                self.drone_q_prev[i] = q_new.copy()                                   
-            
-            if np.dot(q_new, self.drone_q_prev[i]) < 0.0:
-                q_new = -q_new
-
-            att.q_d = q_new.tolist()                                  # ROS msg, list
-            self.drone_q_prev[i] = q_new
+            # if sim_t_rel < 4.0:
+            # SAFE cast: convert list->np.array->list(float32)
+            att.q_d = np.array(rotation_matrix_to_quaternion(R_ic), dtype=np.float32).tolist()
+            # print(f_i / self.max_thrust)
+            # norm = np.clip((f_i / self.max_thrust) + self.thrust_bias , 0.3, 1.0)
             norm = - f_i / self.max_thrust - self.thrust_bias
-            norm = np.clip(norm , -1.0, -0.1)
+            norm = np.clip(norm , -1.0, -0.2)
+            # print(f"Drone {i}: Thrust norm: {norm:.2f} )")
             att.thrust_body = [0.0, 0.0, norm]
-            if not self.traj_done: #and  sim_t_rel < 6.0:
-                self.pub_att[i].publish(att)
-
-            traj = TrajectorySetpoint()
-            traj.timestamp = ts_us
-            traj.position = self.x_id[i].astype(np.float32)
-            traj.velocity = self.v_id[i].astype(np.float32)
-            # traj.velocity = [np.nan, np.nan, np.nan]  # velocity is not used in PX4
-            # traj.acceleration = [np.nan, np.nan, np.nan]
-            # traj.yaw = 0.0
-            # traj.yawspeed = np.nan
-            self.pub_pos[i].publish(traj)
-
+            self.pub_att[i].publish(att)
+            # else:
+            #     # SAFE cast: convert list->np.array->list(float32)
+            #     att.q_d = np.array(rotation_matrix_to_quaternion(np.eye(3)), dtype=np.float32).tolist()
+            #     # print(f_i / self.max_thrust)
+            #     # norm = np.clip((f_i / self.max_thrust) + self.thrust_bias , 0.3, 1.0)
+            #     norm = - f_i / self.max_thrust - self.thrust_bias
+            #     norm = np.clip(norm , -1.0, -0.2)
+            #     # print(f"Drone {i}: Thrust norm: {norm:.2f} )")
+            #     att.thrust_body = [0.0, 0.0, norm]
+            #     self.pub_att[i].publish(att)
+            # breakpoint()
+            pos = TrajectorySetpoint()
+            pos.timestamp = ts_us
+            pos.position = self.x_id[i].astype(np.float32)
+            self.pub_pos[i].publish(pos)
             e_qi      = np.cross(q_d[i], q_i)          # (3,)
             eq_step[i]   = e_qi                        
             ew_step[i]   = e_omega_i                  
@@ -1074,44 +1052,29 @@ class GeomLiftCtrl(Node):
 
 
     def check_state(self, t):
-        ready       = np.isin(self.fsm_states, [3, 4]).all()
-        part_ready  = np.isin(self.fsm_states, [3, 4, 5]).all()
-        traj_ready_ = np.isin(self.fsm_states, [5]).all()
-
+        ready = np.isin(self.fsm_states, [3, 4]).all()
+        part_ready = np.isin(self.fsm_states, [3, 4, 5]).all()
+        traj_ready = np.isin(self.fsm_states, [5]).all()
         msg = Int32()
-        msg.data = TRAJ   # =5
-
-        if not self.traj_ready and np.any((self.fsm_states == ARMING) | (self.fsm_states == TAKEOFF)):
+        msg.data = 5
+        if np.any((self.fsm_states == 1) | (self.fsm_states == 2)):
             return
-
+        
         if ready:
             if self.sim_t0 is None:
-                self.sim_t0 = t 
+                self.sim_t0 = t
             self.t_wait_traj = t - self.sim_t0
             for i in range(self.n):
-                self.pub_cmd[i].publish(msg)   
-
+                self.pub_cmd[i].publish(msg)
+        
         if part_ready:
-            idxs = [i for i, v in enumerate(self.fsm_states) if v != TRAJ]
+            idxs = [i for i, v in enumerate(self.fsm_states) if v != 5]
             for i in idxs:
                 self.pub_cmd[i].publish(msg)
 
-        if (not self.traj_ready) and (self.t_wait_traj > 5.0 or traj_ready_):
-            self.get_logger().info(f"All drones ready, start TRAJ at t={t:.2f}s")
+        if not self.traj_ready and (self.t_wait_traj > 5.0 or traj_ready):
+            self.get_logger().info(f"All drones are ready, starting simulation at t={t:.2f}s")
             self.traj_ready = True
-            self.traj_t0 = t                   
-
-        if self.traj_ready and (not self.traj_done) and (t - self.traj_t0 >= self.traj_duration):
-            msg.data = 6
-            fsm_states = np.atleast_1d(self.fsm_states)  # Ensures it's at least a 1D array
-            idxs = np.where(fsm_states != 6)[0]
-            # print(idxs)
-            for i in idxs:
-                self.pub_cmd[i].publish(msg)
-                self.traj_done_bit[i] = True
-            if np.all(self.traj_done_bit):
-                self.traj_done = True
-
 
 
 def main() -> None:
