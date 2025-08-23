@@ -1,42 +1,47 @@
-# 忽略 colcon 编译生成的目录
+# colcon
 build/
 install/
 log/
 
-# CMake 生成的临时文件
+# CMake tmp file
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
 
-# 忽略 Python 编译文件
+# Python compile
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# 忽略 ROS 2 相关的自动生成文件
+# ROS 2 
 ros2_ws/.colcon/
 ros2_ws/.vscode/
 
-# VS Code 相关文件（可选）
+# VS Code 
 .vscode/
 *.code-workspace
 
-# 忽略 JetBrains IDE（如 CLion）的配置文件（可选）
+# JetBrains IDE（
 .idea/
 *.iml
 
-# 忽略 ROS 2 launch/logs 目录
+# ROS 2 launch/logs 
 *.log
 *.bag
 *.db3
 
-# 忽略 Gazebo 仿真生成的文件
+# Gazebo 
 *.world~
 *.sdf~
 *.urdf~
 
-# 忽略 ROS 1 相关（如果有）
+# ROS 1 
 devel/
+
+# offline trajectory files
+*quad_traj/
+
+
