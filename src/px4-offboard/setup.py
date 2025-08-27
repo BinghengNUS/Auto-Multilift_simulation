@@ -37,7 +37,6 @@ setup(
                 # Geometric control
                 'geom_multi = px4_offboard.geom_multi:main',
                 'clock_sync_node = px4_offboard.clock_sync_node:main',
-
                 # MPC control
                 'multilift_sync_node = px4_offboard.multilift_sync_node:main',
                 'multilift_quad_node = px4_offboard.multilift_quad_node:main',
@@ -48,6 +47,8 @@ setup(
                 'mpc_subscriber = px4_offboard.mpc_subscriber:main',
                 'qtemp_pub = px4_offboard.qtemp_pub:main',
                 'qtemp_sub = px4_offboard.qtemp_sub:main',
+                # Batch MPC demo
+                'batch_mpc = px4_offboard.batch_mpc_node:main',
         ],
     },
 )
