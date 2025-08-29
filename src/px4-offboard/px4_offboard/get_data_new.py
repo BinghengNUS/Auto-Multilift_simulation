@@ -11,12 +11,13 @@ class DataLoader():
     Class to load planned trajectory data from data files.
     """
     def __init__(self):
-        self.num_drones = 6
+        self.num_drones = 3
         self.dt = 0.01  # 100Hz
         self.rl = 0.25
         self.alpha  = 2 * np.pi / self.num_drones
         self.cable_length = 1.0
-        self.path = f'/home/carlson/ros2/multilift_ws/6quad_traj/Planning_plots_multiagent_meta_evaluation (rg_-003_-002_100Hz_6s_l=1m_large_dist_new_smooth_useThis)'
+        # self.path = f'/home/carlson/ros2/multilift_ws/6quad_traj/Planning_plots_multiagent_meta_evaluation (rg_-003_-002_100Hz_6s_l=1m_large_dist_new_smooth_useThis)'
+        self.path = f'/home/carlson/ros2/multilift_ws/3quad_traj/Planning_plots_multiagent_meta_evaluation (rg_-003_-002_3quad_l=1m_100Hz_smooth_useThis)'
         # self.rg_task = np.load(f'{self.path}/trained_data_meta/rg_task.npy')    # the CoM offset of the payload
         self.ml = 1.50   # payload mass
         self.g = 9.81   # gravity

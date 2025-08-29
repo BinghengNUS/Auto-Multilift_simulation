@@ -24,13 +24,12 @@ setup(
     maintainer_email='jalim@ethz.ch',
     description='TODO: Package description',
     license='TODO: License declaration',
-    tests_require=['pytest'],
+    # tests_require=['pytest'],
     entry_points={
         'console_scripts': [
                 'offboard_control = px4_offboard.offboard_control:main',
                 'visualizer = px4_offboard.visualizer:main',
-
-                'geom_multi = px4_offboard.geom_multi:main',
+                'geom_multilift = px4_offboard.geom_multilift:main',
                 'clock_sync_node = px4_offboard.clock_sync_node:main',
         ],
     },

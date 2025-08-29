@@ -31,7 +31,7 @@ from typing import Tuple
 
 
 
-NUM_DRONES = 6  # default number of drones
+NUM_DRONES = 3  # default number of drones
 CTRL_HZ = 100.0  # default control frequency [Hz]
 DATA_HZ = 100.0
 
@@ -640,7 +640,7 @@ class GeomLiftCtrl(Node):
         self.payload_m = 1.50
         self.m_drones = 0.250      # drone mass    [kg]
         # self.max_thrust = 2.58 * self.m_drones * 9.81    # for 1kg drone
-        self.max_thrust = 8.0 * self.m_drones * 9.81  # max thrust per drone [N] for 250g drone
+        self.max_thrust = 7.80 * self.m_drones * 9.81  # max thrust per drone [N] for 250g drone
         self.l    = 1.0         # cable length   [m]
         self.g    = np.array([0.0, 0.0, 9.81])
         
@@ -709,14 +709,16 @@ class GeomLiftCtrl(Node):
 
 
         #--- control gains (PD only ) --------------------
-        self.kq = 10.0
-        self.kw = 3.20
-        self.z_weight = 0.380    # weight for the geometric control z axis
+        # self.kq = 10.0
+        # self.kw = 3.40
+        self.kq = 9.50
+        self.kw = 3.40
+        self.z_weight = 0.40    # weight for the geometric control z axis
 
 
         self.k_ddp = np.zeros((6,13))
         # self.alpha = 0.0       # DDP feedback gain 
-        self.alpha = 0.10
+        self.alpha = 0.07
 
         # self.slowdown = 1.25     # for test only, no slowdown
         self.slowdown = 1.0     # no slowdown
@@ -1018,7 +1020,7 @@ class GeomLiftCtrl(Node):
             A1 = np.cross(b2c, fused_z)
             b1c = A1 / np.linalg.norm(A1)
             R_ic = np.column_stack((b1c, b2c, fused_z))
-            ensure_SO3(R_ic)
+            # ensure_SO3(R_ic)
             ts_us = int(self.get_clock().now().nanoseconds // 1000)
             att = VehicleAttitudeSetpoint()
             att.timestamp = ts_us

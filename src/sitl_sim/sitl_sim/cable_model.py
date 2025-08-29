@@ -5,12 +5,18 @@
 | Author: Yichao Gao
 """
 
-from isaacsim import SimulationApp
+# from isaacsim import SimulationApp
 # simulation_app = SimulationApp({"headless": False})
 import math
+# import numpy as np
+import omni.kit
+omni.kit.app.get_app().get_extension_manager()\
+    .set_extension_enabled_immediate("omni.physx.camera", True)
 from pxr import UsdLux, UsdGeom, Sdf, Gf, UsdPhysics, UsdShade, PhysxSchema, Vt
 import omni.physxdemos as demo
 import omni.kit.commands
+# from omni.isaac.core.articulations import Articulation, ArticulationView
+# from omni.isaac.sensor.scripts.effort_sensor import EffortSensor
 
 
 class RigidBodyRopes(demo.Base):
@@ -32,20 +38,34 @@ class RigidBodyRopes(demo.Base):
         self._defaultPrimPath = stage.GetDefaultPrim().GetPath()
 
         ## Payload config:
-        self._payloadRadius = 0.24
-        self._payloadHight = self._payloadRadius / 4
+        self._payloadRadius = 0.25
+        self._payloadHight = self._payloadRadius / 8
         self._payloadMass = payload_mass
         self._payloadColor = [0.22, 0.43, 0.55]
+        # self._payloadInertia = Gf.Vec3f(0.05, 0.05, 0.10) # rotational inertia about CoM
+        # self._payloadInertia = Gf.Vec3f(0.1, 0.1, 0.2)
+        self._payloadInertia = Gf.Vec3f(0.05, 0.05, 0.1)
+        # self._payloadInertia = Gf.Vec3f(0.047, 0.047, 0.153750)
+        # self._payloadInertia = Gf.Vec3f(0.047, 0.047, 0.043750)
+        # self._payloadInertia = Gf.Vec3f(0.094, 0.093, 0.185)  # rotational inertia about CoM
+        # self._payloadInertia = Gf.Vec3f(0.25, 0.25, 0.25)
+        # self._payloadCoM = Gf.Vec3f(0.01, -0.01 , 0)    # center of mass 
+        # self._payloadCoM = Gf.Vec3f(-0.03, 0.02 , 0)
+        self._payloadCoM = Gf.Vec3f(-0.03, -0.02 , 0)
+        # self._payloadPrincipleAxes = Gf.Vec3f(1, 0, 0)  # principal axes of the payload
 
-        self._initLoadHeight = load_height
+        # self._initLoadHeight = load_height
+        self._initLoadHeight = self._payloadHight / 2
         self._payloadPos = Gf.Vec3f(0.0, 0.0, self._initLoadHeight)
 
         self._payloadXform = self._defaultPrimPath.AppendChild(f"CommonPayload")
         self._payloadPath = self._payloadXform.AppendChild("Payload")
+        self._cameraPath = self._payloadXform.AppendChild("PayloadCamera")
+        # self._crossPath = self._payloadXform.AppendChild("Cross")
 
         ## Ropes config:
-        self._linkHalfLength = 0.08
-        self._linkRadius = 0.01
+        self._linkHalfLength = 0.09
+        self._linkRadius = 0.005
         self._ropeLength = rope_length
         self._numRopes = num_ropes
         self._ropeSpacing = 15.0
@@ -66,6 +86,7 @@ class RigidBodyRopes(demo.Base):
         # Table / Box Config
         self._scaleFactor = 1.0 / (UsdGeom.GetStageMetersPerUnit(stage) * 100.0)
         self._tableThickness = 6.0
+        # self._boxSize = 0.01
         self._boxSize = 1.0
         self._tableHeight = (
             self._initLoadHeight
@@ -94,13 +115,13 @@ class RigidBodyRopes(demo.Base):
         self._createPayload()  # Defines the payload geometry and applies an iron-like look
 
         if num_ropes < 2:
-            self.create_table()
+            self._createTable()
             self._createVerticalRopes()
         else:
             self._createMultiRopes(elevation_angle)
 
     ## Scene Object Functions ##
-    def _createCapsule(self, path: Sdf.Path, axis="Z"):
+    def _createCapsule(self, path: Sdf.Path, axis="Z", rope_idx=0):
         capsuleGeom = UsdGeom.Capsule.Define(self._stage, path)
         capsuleGeom.CreateHeightAttr(self._linkHalfLength)
         capsuleGeom.CreateRadiusAttr(self._linkRadius)
@@ -111,47 +132,108 @@ class RigidBodyRopes(demo.Base):
         massAPI = UsdPhysics.MassAPI.Apply(capsuleGeom.GetPrim())
         massAPI.CreateMassAttr().Set(0.008)
         UsdPhysics.CollisionAPI.Apply(capsuleGeom.GetPrim())
+        group_val = 1 << rope_idx
+        mask_val  = 0xFFFF & ~group_val
+        prim = capsuleGeom.GetPrim()
+        prim.CreateAttribute("physxCollision:collisionGroup",
+                            Sdf.ValueTypeNames.UInt, custom=False).Set(group_val)
+        prim.CreateAttribute("physxCollision:collisionMask",
+                            Sdf.ValueTypeNames.UInt, custom=False).Set(mask_val)
+        
+    def _createVisualCapsule(self, path, start, end, angle):
+        pos = (start + end) / 2
+        radius = self._linkRadius / 2
+        capsuleGeom = UsdGeom.Capsule.Define(self._stage, path)
+        capsuleGeom.AddTranslateOp().Set(pos)
+        capsuleGeom.AddRotateZOp().Set(angle)
+        capsuleGeom.CreateHeightAttr(self._payloadRadius - 0.03)
+        capsuleGeom.CreateRadiusAttr(radius)
+        capsuleGeom.CreateAxisAttr("X")
+        capsuleGeom.CreateDisplayColorAttr().Set([Gf.Vec3f(0.11, 0.21, 0.28)])
+        # UsdPhysics.RigidBodyAPI.Apply(capsuleGeom.GetPrim())
+        # PhysxSchema.PhysxRigidBodyAPI.Apply(capsuleGeom.GetPrim())
+        # massAPI = UsdPhysics.MassAPI.Apply(capsuleGeom.GetPrim())
+        # massAPI.CreateMassAttr().Set(0.008)
+        # UsdPhysics.CollisionAPI.Apply(capsuleGeom.GetPrim())
+        # group_val = 1 << rope_idx
+        # mask_val  = 0xFFFF & ~group_val
+        # prim = capsuleGeom.GetPrim()
+        # prim.CreateAttribute("physxCollision:collisionGroup",
+        #                     Sdf.ValueTypeNames.UInt, custom=False).Set(group_val)
+        # prim.CreateAttribute("physxCollision:collisionMask",
+        #                     Sdf.ValueTypeNames.UInt, custom=False).Set(mask_val)
 
     def _createPayload(self):
         """
         Defines the payload geometry and sets its mass.
         Applies a metallic 'iron-like' material for visualization only.
         """
-        UsdGeom.Xform.Define(self._stage, self._payloadXform)
+        payloadXform = UsdGeom.Xform.Define(self._stage, self._payloadXform)
         payloadGeom = UsdGeom.Cylinder.Define(self._stage, self._payloadPath)
         payloadGeom.AddTranslateOp().Set(self._payloadPos)
         payloadGeom.CreateRadiusAttr(self._payloadRadius)
         payloadGeom.CreateHeightAttr(self._payloadHight)
         payloadGeom.CreateDisplayColorAttr().Set([self._payloadColor])
         # Apply physics
+        # TODO:modify, change the rigid body physics from shape to xform
+        # Errors happen if rigid body and mass set to Xform
         rigidAPI = UsdPhysics.RigidBodyAPI.Apply(payloadGeom.GetPrim())
+        # rigidAPI = UsdPhysics.RigidBodyAPI.Apply(payloadXform.GetPrim())
         rigidAPI.CreateRigidBodyEnabledAttr(True)
         PhysxSchema.PhysxRigidBodyAPI.Apply(payloadGeom.GetPrim())
         massAPI = UsdPhysics.MassAPI.Apply(payloadGeom.GetPrim())
+        # massAPI = UsdPhysics.MassAPI.Apply(payloadXform.GetPrim())
         massAPI.CreateMassAttr().Set(self._payloadMass)
+        massAPI.CreateDiagonalInertiaAttr().Set(self._payloadInertia)
+        massAPI.CreateCenterOfMassAttr().Set(self._payloadCoM)
         UsdPhysics.CollisionAPI.Apply(payloadGeom.GetPrim())
+        # set cameras
+        camera_path = self._cameraPath
+        UsdGeom.Camera.Define(self._stage, camera_path)
+        cam_prim = self._stage.GetPrimAtPath(camera_path)
+        cam_xform = UsdGeom.Xformable(cam_prim)
+        if not cam_xform.GetOrderedXformOps():
+            cam_xform.AddTranslateOp()          # Move Gizmo
+            cam_xform.AddRotateXYZOp()          # Rotate Gizmo  :contentReference[oaicite:1]{index=1}
+        xform_ops = cam_xform.GetOrderedXformOps()
+        translate_op, rotate_op = xform_ops           
+        translate_op.Set(Gf.Vec3d(-30.0, -0.0, 15.01594))     # m
+        rotate_op.Set(Gf.Vec3f(63.43495, 0.0, -89.999999))       # deg
+        drone_api = PhysxSchema.PhysxCameraDroneAPI.Apply(cam_prim)
+        cam_api = PhysxSchema.PhysxCameraAPI(cam_prim)
+        subj_rel = cam_api.GetPhysxCameraSubjectRel()
+        if not subj_rel or not subj_rel.IsValid():            # first time
+            subj_rel = cam_api.CreatePhysxCameraSubjectRel()
+        subj_rel.ClearTargets(True)
+        subj_rel.AddTarget(self._payloadPath)             
+        drone_api.CreateFollowHeightAttr(15.0)                # 15 m up
+        drone_api.CreateFollowDistanceAttr(30.0)              # 30 m back
+        drone_api.CreateMaxSpeedAttr(20.0)                    # m/s
+        drone_api.CreateHorizontalVelocityGainAttr(1.0)
+        drone_api.CreateVerticalVelocityGainAttr(1.0)
+        drone_api.CreateFeedForwardVelocityGainAttr(0.1)
+        drone_api.CreateVelocityFilterTimeConstantAttr(1.0)
+        drone_api.CreateRotationFilterTimeConstantAttr(0.20)
+        drone_api.CreatePositionOffsetAttr(Gf.Vec3f(0, 0, 0))
+        # # Create an iron-like material (visual only)
+        # materialPath = Sdf.Path("/World/Looks/IronMaterial")
+        # ironMaterial = UsdShade.Material.Define(self._stage, materialPath)
 
-        # ---------------------------
-        # Create an iron-like material (visual only)
-        # ---------------------------
-        materialPath = Sdf.Path("/World/Looks/IronMaterial")
-        ironMaterial = UsdShade.Material.Define(self._stage, materialPath)
+        # pbrShader = UsdShade.Shader.Define(self._stage, materialPath.AppendChild("PBRShader"))
+        # pbrShader.CreateIdAttr("UsdPreviewSurface")
+        # # Set the shader inputs to achieve a metallic appearance
+        # pbrShader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(1.0)
+        # pbrShader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.3)
+        # pbrShader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.2, 0.2, 0.2))
+        # # Create an output on the PBR shader for the "surface"
+        # pbrShaderOutput = pbrShader.CreateOutput("surface", Sdf.ValueTypeNames.Token)
+        # # Create the material's surface output using the default render context
+        # materialSurfaceOutput = ironMaterial.CreateSurfaceOutput()
+        # materialSurfaceOutput.ConnectToSource(pbrShaderOutput)
+        # # Bind the material to the payload geometry (visual only)
+        # UsdShade.MaterialBindingAPI(payloadGeom.GetPrim()).Bind(ironMaterial)
 
-        pbrShader = UsdShade.Shader.Define(self._stage, materialPath.AppendChild("PBRShader"))
-        pbrShader.CreateIdAttr("UsdPreviewSurface")
-        # Set the shader inputs to achieve a metallic appearance
-        pbrShader.CreateInput("metallic", Sdf.ValueTypeNames.Float).Set(1.0)
-        pbrShader.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.3)
-        pbrShader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.2, 0.2, 0.2))
-        # Create an output on the PBR shader for the "surface"
-        pbrShaderOutput = pbrShader.CreateOutput("surface", Sdf.ValueTypeNames.Token)
-        # Create the material's surface output using the default render context
-        materialSurfaceOutput = ironMaterial.CreateSurfaceOutput()
-        materialSurfaceOutput.ConnectToSource(pbrShaderOutput)
-        # Bind the material to the payload geometry (visual only)
-        UsdShade.MaterialBindingAPI(payloadGeom.GetPrim()).Bind(ironMaterial)
-
-    def create_box(self, rootPath, primPath, dimensions, position, color, orientation=Gf.Quatf(1.0), positionMod=None):
+    def _createBox(self, rootPath, primPath, dimensions, position, color, orientation=Gf.Quatf(1.0), positionMod=None):
         boxActorPath = self.get_path(rootPath, primPath)
         newPosition = Gf.Vec3f(0.0)
         for i in range(3):
@@ -170,15 +252,51 @@ class RigidBodyRopes(demo.Base):
         UsdPhysics.RigidBodyAPI.Apply(cubePrim)
         UsdPhysics.CollisionAPI.Apply(cubePrim)
 
-    def create_table(self):
+    def _createSphere(self, rootPath, primPath, dimensions, position, color, orientation=Gf.Quatf(1.0), positionMod=None):
+        sphereActorPath = self.get_path(rootPath, primPath)
+        newPosition = Gf.Vec3f(0.0)
+        for i in range(3):
+            newPosition[i] = position[i]
+            if positionMod:
+                newPosition[i] *= positionMod[i]
+        sphereGeom = UsdGeom.Sphere.Define(self._stage, sphereActorPath)
+        spherePrim = self._stage.GetPrimAtPath(sphereActorPath)
+        sphereGeom.AddTranslateOp().Set(newPosition)
+        sphereGeom.AddOrientOp().Set(orientation)
+        sphereGeom.AddScaleOp().Set(self.orient_dim(dimensions))
+        # sphereGeom.CreateSizeAttr(1.0)
+        sphereGeom.CreateDisplayColorAttr().Set([color])
+        half_extent = 0.5
+        sphereGeom.CreateExtentAttr([(-half_extent, -half_extent, -half_extent), (half_extent, half_extent, half_extent)])
+        UsdPhysics.RigidBodyAPI.Apply(spherePrim)
+        UsdPhysics.CollisionAPI.Apply(spherePrim)
+
+    def _createTable(self):
         tableDim = Gf.Vec3f(self._tableSurfaceDim[0], self._tableSurfaceDim[1], self._tableThickness)
-        self.create_box(
+        self._createBox(
             "Table",
             "tableTopActor",
             Gf.Vec3f(tableDim[0], tableDim[1], self._tableThickness),
             Gf.Vec3f(0.0, 0.0, tableDim[2] - self._tableThickness * self._scaleFactor * 0.5),
             self._tableColor,
         )
+
+    def _createEffortSensor(self, jointPath):
+        # first create a prismatic joint for force mesurement
+        joint = UsdPhysics.PrismaticJoint.Define(self._stage, jointPath)
+        joint_prim = joint.GetPrim()
+        slide_DOF = "transX"
+        limitAPI = UsdPhysics.LimitAPI.Apply(joint_prim, slide_DOF)
+        # no move for the joint (lock)
+        limitAPI.CreateLowAttr(0.0001)
+        limitAPI.CreateHighAttr(-0.0001)
+        # create effort sensor and attach
+        # sensor = EffortSensor(
+        # prim_path = jointPath,
+        # sensor_period = 0.01,   # 100Hz
+        # use_latest_data = True,
+        # enabled = True)
+        return
 
     ## Joint Functions ##
     def _createCableJoint(self, jointPath, axis="Z"):
@@ -221,7 +339,8 @@ class RigidBodyRopes(demo.Base):
             physx_limit_api = PhysxSchema.PhysxLimitAPI.Apply(d6Prim, d)
             driveAPI = UsdPhysics.DriveAPI.Apply(d6Prim, d)
             driveAPI.CreateTypeAttr("force")
-            driveAPI.CreateDampingAttr(0.0005)
+            # driveAPI.CreateStiffnessAttr(0.00001)
+            driveAPI.CreateDampingAttr(0.0001)
 
     def _createFixJoint(self, jointPath):
         joint = UsdPhysics.Joint.Define(self._stage, jointPath)
@@ -234,10 +353,19 @@ class RigidBodyRopes(demo.Base):
     def _createUniJoint(self, jointPath):
         joint = UsdPhysics.Joint.Define(self._stage, jointPath)
         d6Prim = joint.GetPrim()
+        rotatedDOFs = ["rotX", "rotY", "rotZ"]
         for axis in ["transX", "transY", "transZ"]:
             limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, axis)
-            limitAPI.CreateLowAttr(0.0)
-            limitAPI.CreateHighAttr(0.0)
+            limitAPI.CreateLowAttr(-0.0005)
+            limitAPI.CreateHighAttr(0.0005)
+        for d in rotatedDOFs:
+            limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, d)
+            physx_limit_api = PhysxSchema.PhysxLimitAPI.Apply(d6Prim, d)
+            driveAPI = UsdPhysics.DriveAPI.Apply(d6Prim, d)
+            driveAPI.CreateTypeAttr("force")
+            # driveAPI.CreateStiffnessAttr(0.0005)
+            driveAPI.CreateDampingAttr(0.0001)
+
 
     ## Rope Functions ##
     def _createVerticalRopes(self):
@@ -339,6 +467,7 @@ class RigidBodyRopes(demo.Base):
         angle_increment = 2 * math.pi / self._numRopes
         cos_elevation = math.cos(elevation_angle)
         sin_elevation = math.sin(elevation_angle)
+        # create multiple ropes
         for ropeInd in range(self._numRopes):
             scopePath = self._defaultPrimPath.AppendChild(f"Rope{ropeInd}")
             UsdGeom.Xform.Define(self._stage, scopePath)
@@ -350,12 +479,20 @@ class RigidBodyRopes(demo.Base):
             positions = []
             orientations = []
             angle = angle_increment * ropeInd
+            # start position of the first capsule
             xstartPos = (self._payloadRadius + capsuleHalf * cos_elevation) * math.cos(angle)
             ystartPos = (self._payloadRadius + capsuleHalf * cos_elevation) * math.sin(angle)
             zstartPos = self._initLoadHeight + capsuleHalf * sin_elevation
+            curve_width = 0.005
+            xstartPosCurve = (self._payloadRadius - 0.03) * math.cos(angle)
+            ystartPosCurve = (self._payloadRadius - 0.03) * math.sin(angle)
+            xendPosCurve = 4 * curve_width * (self._payloadRadius) * math.cos(angle)
+            yendPosCurve = 4 * curve_width * (self._payloadRadius) * math.sin(angle)
+            zstartPosCurve = self._initLoadHeight + self._payloadHight * 0.1
             q_z = self.calculate_orientation(angle, Gf.Vec3f(0.0, 0.0, 1.0))
             q_y = self.calculate_orientation(elevation_angle, Gf.Vec3f(0.0, -1.0, 0.0))
             orientation = q_z * q_y
+            # compute position of each capsule
             for linkInd in range(numLinks):
                 meshIndices.append(0)
                 x = xstartPos + linkInd * linkLength * math.cos(angle) * cos_elevation
@@ -379,6 +516,7 @@ class RigidBodyRopes(demo.Base):
             jointLocalPos1 = []
             jointLocalRot0 = []
             jointLocalRot1 = []
+            # compute joint positions
             for linkInd in range(numLinks - 1):
                 body0Index = linkInd
                 body1Index = linkInd + 1
@@ -399,6 +537,7 @@ class RigidBodyRopes(demo.Base):
             jointInstancer.GetPhysicsLocalPos1sAttr().Set(Vt.Vec3fArray(jointLocalPos1))
             jointInstancer.GetPhysicsLocalRot0sAttr().Set(Vt.QuathArray(jointLocalRot0))
             jointInstancer.GetPhysicsLocalRot1sAttr().Set(Vt.QuathArray(jointLocalRot1))
+            # Attach the payload to the first link
             payloadAttachScopePath = scopePath.AppendChild("ropePayloadCon")
             payloadAttachInstancer = PhysxSchema.PhysxPhysicsJointInstancer.Define(self._stage, payloadAttachScopePath)
             PayloadJointPath = payloadAttachScopePath.AppendChild("PayloadJoint")
@@ -415,11 +554,13 @@ class RigidBodyRopes(demo.Base):
             payloadAttachInstancer.GetPhysicsLocalPos1sAttr().Set(Vt.Vec3fArray([Gf.Vec3f(-capsuleHalf, 0.0, 0.0)]))
             payloadAttachInstancer.GetPhysicsLocalRot0sAttr().Set(Vt.QuathArray([orientation]))
             payloadAttachInstancer.GetPhysicsLocalRot1sAttr().Set(Vt.QuathArray([Gf.Quath(1.0)]))
+            # Attach the last link to the table(box)
             boxPath = scopePath.AppendChild(f"box{ropeInd}Actor")
+            # position of the last capsule
             x = positions[-1][0]
             y = positions[-1][1]
             z = positions[-1][2]
-            self.create_box(
+            self._createBox(
                 f"Rope{ropeInd}",
                 f"box{ropeInd}Actor",
                 Gf.Vec3f(self._boxSize, self._boxSize, self._boxSize),
@@ -431,6 +572,7 @@ class RigidBodyRopes(demo.Base):
                 self._tableColor,
                 orientation=Gf.Quatf(orientation),
             )
+            # attach cable and box
             boxAttachScopePath = scopePath.AppendChild("ropeBoxCon")
             boxAttachInstancer = PhysxSchema.PhysxPhysicsJointInstancer.Define(self._stage, boxAttachScopePath)
             BoxJointPath = boxAttachScopePath.AppendChild("BoxJoint")
@@ -442,11 +584,179 @@ class RigidBodyRopes(demo.Base):
             boxAttachInstancer.GetPhysicsBody0IndicesAttr().Set(Vt.IntArray([numLinks - 1]))
             boxAttachInstancer.GetPhysicsBody1IndicesAttr().Set(Vt.IntArray([0]))
             boxAttachInstancer.GetPhysicsLocalPos0sAttr().Set(
-                Vt.Vec3fArray([Gf.Vec3f(capsuleHalf + self._boxSize * self._scaleFactor * 0.5, 0.0, 0.0)])
+                Vt.Vec3fArray([Gf.Vec3f(capsuleHalf , 0.0, 0.0)])
             )
-            boxAttachInstancer.GetPhysicsLocalPos1sAttr().Set(Vt.Vec3fArray([Gf.Vec3f(0, 0.0, 0.0)]))
+            boxAttachInstancer.GetPhysicsLocalPos1sAttr().Set(Vt.Vec3fArray([Gf.Vec3f(- self._boxSize * self._scaleFactor * 0.5, 0.0, 0.0)]))
+            # boxAttachInstancer.GetPhysicsLocalRot0sAttr().Set(Vt.QuathArray([orientation]))
             boxAttachInstancer.GetPhysicsLocalRot0sAttr().Set(Vt.QuathArray([Gf.Quath(1.0)]))
             boxAttachInstancer.GetPhysicsLocalRot1sAttr().Set(Vt.QuathArray([Gf.Quath(1.0)]))
+            # Drawing to notate the center of payload
+            # curve_path = self._payloadPath.AppendChild(f'curve{ropeInd}')
+            # curve = UsdGeom.BasisCurves.Define(self._stage, curve_path)
+            # curve.CreatePointsAttr([Gf.Vec3f(xstartPosCurve, ystartPosCurve, zstartPosCurve), Gf.Vec3f(xendPosCurve, yendPosCurve, zstartPosCurve)])
+            # curve.CreateCurveVertexCountsAttr([2])
+            # curve.CreateTypeAttr("linear")
+            # curve.CreateDisplayColorAttr([(0.0, 1.0, 0.0)])
+            # curve.CreateWidthsAttr([curve_width])  
+            # curve.SetWidthsInterpolation(UsdGeom.Tokens.constant)
+            # Create visual capsule
+            visualCapsulePath = self._payloadPath.AppendChild(f'VisualCapsule{ropeInd}')
+            self._createVisualCapsule(path=visualCapsulePath, start=Gf.Vec3f(xstartPosCurve, ystartPosCurve, zstartPosCurve), end=Gf.Vec3f(xendPosCurve, yendPosCurve, zstartPosCurve), angle=angle*180.0/math.pi)
+
+
+            # # attach a effort sensor to the cable end
+            # sensorBoxPath= scopePath.AppendChild(f"Rope{ropeInd}EffortSensorBox")
+            # self._createBox(
+            #     f"Rope{ropeInd}",
+            #     f"Rope{ropeInd}EffortSensorBox",
+            #     Gf.Vec3f(self._boxSize, self._boxSize, self._boxSize),
+            #     Gf.Vec3f(
+            #         x + (capsuleHalf + self._boxSize * self._scaleFactor * 1.5) * math.cos(angle) * cos_elevation,
+            #         y + (capsuleHalf + self._boxSize * self._scaleFactor * 1.5) * math.sin(angle) * cos_elevation,
+            #         z + (capsuleHalf + self._boxSize * self._scaleFactor * 1.5) * sin_elevation,
+            #     ),
+            #     self._tableColor,
+            #     orientation=Gf.Quatf(orientation),
+            # )
+            # sensorJointPath = scopePath.AppendChild("sensorJoint")
+            # sensorJoint = UsdPhysics.PrismaticJoint.Define(self._stage, sensorJointPath)
+            # sensorJoint.CreateAxisAttr("transX")
+            # sensorJoint.CreateLowerLimitAttr(0.0)
+            # sensorJoint.CreateUpperLimitAttr(0.0)
+            # sensorJoint.CreateBody0Rel().SetTargets([boxPath])
+            # sensorJoint.CreateBody1Rel().SetTargets([sensorBoxPath])
+            # sensorJoint.CreateLocalPos0Attr().Set(Gf.Vec3f(self._boxSize * 0.5, 0, 0.0))
+            # sensorJoint.CreateLocalPos1Attr().Set(Gf.Vec3f(-self._boxSize * 0.5, 0, 0.0))
+            # # sensorJoint.CreateLocalRot0Attr().Set(Gf.Quatf(orientation))
+            # sensorJoint.CreateLocalRot0Attr().Set(Gf.Quatf(1.0))
+            # sensorJoint.CreateLocalRot1Attr().Set(Gf.Quatf(1.0))
+            # # SensorScopePath = scopePath.AppendChild("ropeEffortSensor")
+            # # SensorInstancer = PhysxSchema.PhysxPhysicsJointInstancer.Define(self._stage, SensorScopePath)
+            # # SensorJointPath = SensorScopePath.AppendChild("SensorJoint")
+            # # self._createEffortSensor(SensorJointPath)
+            # # SensorInstancer.GetPhysicsPrototypesRel().AddTarget(SensorJointPath)
+            # # SensorInstancer.GetPhysicsBody0sRel().SetTargets([boxPath])
+            # # SensorInstancer.GetPhysicsBody1sRel().SetTargets([sensorBoxPath])
+            # # # SensorInstancer.GetPhysicsProtoIndicesAttr().Set(Vt.IntArray([0]))
+            # # # SensorInstancer.GetPhysicsBody0IndicesAttr().Set(Vt.IntArray([0]))
+            # # # SensorInstancer.GetPhysicsBody1IndicesAttr().Set(Vt.IntArray([0]))
+            # # SensorInstancer.GetPhysicsLocalPos0sAttr().Set(Vt.Vec3fArray([Gf.Vec3f(self._boxSize * self._scaleFactor * 0.5, 0.0, 0.0)]))
+            # # SensorInstancer.GetPhysicsLocalPos1sAttr().Set(Vt.Vec3fArray([Gf.Vec3f(-self._boxSize * self._scaleFactor * 0.5, 0.0, 0.0)]))
+            # # SensorInstancer.GetPhysicsLocalRot0sAttr().Set(Vt.QuathArray([Gf.Quath(1.0)]))
+            # # SensorInstancer.GetPhysicsLocalRot1sAttr().Set(Vt.QuathArray([Gf.Quath(1.0)]))
+
+            # # Create sensor articulation
+            # sensorArticulationPath = scopePath.AppendChild(f"Rope{ropeInd}EffortSensorArticulation")
+            # sensorArticulationXform = UsdGeom.Xform.Define(self._stage, sensorArticulationPath)
+            # sensorArticulationPrim = sensorArticulationXform.GetPrim()
+            # boxPath = sensorArticulationPath.AppendChild(f"box{ropeInd}Actor")
+            # # position of the last capsule
+            # x = positions[-1][0]
+            # y = positions[-1][1]
+            # z = positions[-1][2]
+            # self._createSphere(
+            #     f"Rope{ropeInd}/Rope{ropeInd}EffortSensorArticulation",
+            #     # f"Rope{ropeInd}EffortSensorArticulation",
+            #     f"box{ropeInd}Actor",
+            #     Gf.Vec3f(self._boxSize/2, self._boxSize/2, self._boxSize/2),
+            #     Gf.Vec3f(
+            #         x + (capsuleHalf + self._boxSize * self._scaleFactor * 0.5) * math.cos(angle) * cos_elevation,
+            #         y + (capsuleHalf + self._boxSize * self._scaleFactor * 0.5) * math.sin(angle) * cos_elevation,
+            #         z + (capsuleHalf + self._boxSize * self._scaleFactor * 0.5) * sin_elevation,
+            #     ),
+            #     self._tableColor,
+            #     orientation=Gf.Quatf(orientation),
+            # )
+            # # # attach cable and box
+            # boxAttachScopePath = scopePath.AppendChild("ropeBoxCon")
+            # boxAttachInstancer = PhysxSchema.PhysxPhysicsJointInstancer.Define(self._stage, boxAttachScopePath)
+            # BoxJointPath = boxAttachScopePath.AppendChild("BoxJoint")
+            # self._createUniJoint(BoxJointPath)
+            # boxAttachInstancer.GetPhysicsPrototypesRel().AddTarget(BoxJointPath)
+            # boxAttachInstancer.GetPhysicsBody0sRel().SetTargets([instancerPath])
+            # boxAttachInstancer.GetPhysicsBody1sRel().SetTargets([boxPath])
+            # boxAttachInstancer.GetPhysicsProtoIndicesAttr().Set(Vt.IntArray([0]))
+            # boxAttachInstancer.GetPhysicsBody0IndicesAttr().Set(Vt.IntArray([numLinks - 1]))
+            # boxAttachInstancer.GetPhysicsBody1IndicesAttr().Set(Vt.IntArray([0]))
+            # boxAttachInstancer.GetPhysicsLocalPos0sAttr().Set(
+            #     Vt.Vec3fArray([Gf.Vec3f(capsuleHalf , 0.0, 0.0)])
+            # )
+            # boxAttachInstancer.GetPhysicsLocalPos1sAttr().Set(Vt.Vec3fArray([Gf.Vec3f(- self._boxSize * self._scaleFactor * 0.5, 0.0, 0.0)]))
+            # # boxAttachInstancer.GetPhysicsLocalRot0sAttr().Set(Vt.QuathArray([orientation]))
+            # boxAttachInstancer.GetPhysicsLocalRot0sAttr().Set(Vt.QuathArray([Gf.Quath(1.0)]))
+            # boxAttachInstancer.GetPhysicsLocalRot1sAttr().Set(Vt.QuathArray([Gf.Quath(1.0)]))
+            # # attach a effort sensor to the cable end
+            # sensorBoxPath= sensorArticulationPath.AppendChild(f"Rope{ropeInd}EffortSensorBox")
+            # self._createSphere(
+            #     f"Rope{ropeInd}/Rope{ropeInd}EffortSensorArticulation",
+            #     # f"Rope{ropeInd}EffortSensorArticulation",
+            #     f"Rope{ropeInd}EffortSensorBox",
+            #     Gf.Vec3f(self._boxSize/2, self._boxSize/2, self._boxSize/2),
+            #     Gf.Vec3f(
+            #         x + (capsuleHalf + self._boxSize * self._scaleFactor * 1.5) * math.cos(angle) * cos_elevation,
+            #         y + (capsuleHalf + self._boxSize * self._scaleFactor * 1.5) * math.sin(angle) * cos_elevation,
+            #         z + (capsuleHalf + self._boxSize * self._scaleFactor * 1.5) * sin_elevation,
+            #     ),
+            #     self._tableColor,
+            #     orientation=Gf.Quatf(orientation),
+            # )
+            # sensorJointPath = sensorArticulationPath.AppendChild("sensorJoint")
+            # sensorJoint = UsdPhysics.PrismaticJoint.Define(self._stage, sensorJointPath)
+            # sensorJoint.CreateAxisAttr("transX")
+            # sensorJoint.CreateLowerLimitAttr(-0.0000)
+            # sensorJoint.CreateUpperLimitAttr(0.0000)
+            # sensorJoint.CreateBody0Rel().SetTargets([boxPath])
+            # sensorJoint.CreateBody1Rel().SetTargets([sensorBoxPath])
+            # sensorJoint.CreateLocalPos0Attr().Set(Gf.Vec3f(self._boxSize, 0, 0.0))
+            # sensorJoint.CreateLocalPos1Attr().Set(Gf.Vec3f(-self._boxSize, 0, 0.0))
+            # # sensorJoint.CreateLocalRot0Attr().Set(Gf.Quatf(orientation))
+            # sensorJoint.CreateLocalRot0Attr().Set(Gf.Quatf(1.0))
+            # sensorJoint.CreateLocalRot1Attr().Set(Gf.Quatf(1.0))
+            # # register the sensor as an articulation
+            # # UsdPhysics.ArticulationRootAPI.Apply(sensorArticulationPrim)
+            # # sensorArticulation = Articulation(prim_path = str(sensorArticulationPath))
+            # # sensorArticulation.set_enabled_self_collisions(False)
+            # # attach a hook sphere for drone connection
+            # hookSpherePath= scopePath.AppendChild(f"Rope{ropeInd}HookSphere")
+            # self._createSphere(
+            #     f"Rope{ropeInd}",
+            #     f"Rope{ropeInd}HookSphere",
+            #     Gf.Vec3f(self._boxSize/2, self._boxSize/2, self._boxSize/2),
+            #     Gf.Vec3f(
+            #         x + (capsuleHalf + self._boxSize * self._scaleFactor * 2.5) * math.cos(angle) * cos_elevation,
+            #         y + (capsuleHalf + self._boxSize * self._scaleFactor * 2.5) * math.sin(angle) * cos_elevation,
+            #         z + (capsuleHalf + self._boxSize * self._scaleFactor * 2.5) * sin_elevation,
+            #     ),
+            #     self._tableColor,
+            #     orientation=Gf.Quatf(orientation),
+            # )
+            # sensorHookJointPath = scopePath.AppendChild("sensorHookJoint")
+            # sensorHookJoint = UsdPhysics.Joint.Define(self._stage, sensorHookJointPath)
+            # # sensorJoint.CreateAxisAttr("transX")
+            # # sensorJoint.CreateLowerLimitAttr(-0.0000)
+            # # sensorJoint.CreateUpperLimitAttr(0.0000)
+            # sensorHookD6Prim = sensorHookJoint.GetPrim()
+            # rotatedDOFs = ["rotX", "rotY", "rotZ"]
+            # for axis in ["transX", "transY", "transZ"]:
+            #     limitAPI = UsdPhysics.LimitAPI.Apply(sensorHookD6Prim, axis)
+            #     limitAPI.CreateLowAttr(-0.000)
+            #     limitAPI.CreateHighAttr(0.000)
+            # for d in rotatedDOFs:
+            #     limitAPI = UsdPhysics.LimitAPI.Apply(sensorHookD6Prim, d)
+            #     physx_limit_api = PhysxSchema.PhysxLimitAPI.Apply(sensorHookD6Prim, d)
+            #     driveAPI = UsdPhysics.DriveAPI.Apply(sensorHookD6Prim, d)
+            #     driveAPI.CreateTypeAttr("force")
+            #     # driveAPI.CreateStiffnessAttr(0.0005)
+            #     driveAPI.CreateDampingAttr(0.0001)
+            # sensorHookJoint.CreateBody0Rel().SetTargets([sensorBoxPath])
+            # sensorHookJoint.CreateBody1Rel().SetTargets([hookSpherePath])
+            # sensorHookJoint.CreateLocalPos0Attr().Set(Gf.Vec3f(2 * self._boxSize, 0, 0.0))
+            # sensorHookJoint.CreateLocalPos1Attr().Set(Gf.Vec3f(-0.0, 0.0, 0.0))
+            # # sensorJoint.CreateLocalRot0Attr().Set(Gf.Quatf(orientation))
+            # sensorHookJoint.CreateLocalRot0Attr().Set(Gf.Quatf(1.0))
+            # sensorHookJoint.CreateLocalRot1Attr().Set(Gf.Quatf(1.0))
+
+
 
     def calculate_orientation(self, angle, axis):
         half_angle = angle / 2

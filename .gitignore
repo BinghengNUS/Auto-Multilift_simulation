@@ -19,6 +19,7 @@ __pycache__/
 # ROS 2 
 ros2_ws/.colcon/
 ros2_ws/.vscode/
+rosbag*
 
 # VS Code 
 .vscode/
