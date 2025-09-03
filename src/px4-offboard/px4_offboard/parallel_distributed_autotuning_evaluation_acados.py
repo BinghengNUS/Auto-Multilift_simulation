@@ -33,6 +33,11 @@ from sklearn.metrics import root_mean_squared_error
 from scipy.spatial.transform import Rotation as Rot
 from joblib import Parallel, delayed
 from multiprocessing import Process, Array, Manager, shared_memory
+try:
+    # Optional UDP multicast transport for inter-host communication
+    from px4_offboard.transport import UdpTransport
+except Exception:
+    UdpTransport = None
 
 
 print("========================================")
@@ -42,6 +47,18 @@ ctrlmode = input("enter 's' or 'p' without the quotation mark:") # s: sequential
 print("========================================")
 
 mode = 'cl_'+str(ctrlmode)
+# Optional IPC transport (UDP multicast). Defaults to disabled.
+MPC_TRANSPORT = os.environ.get("MPC_TRANSPORT", "").lower()  # "udp" or ""
+MPC_GROUP = os.environ.get("MPC_GROUP", "239.255.0.1")
+MPC_PORT = int(os.environ.get("MPC_PORT", "50000"))
+BUS = None
+if MPC_TRANSPORT == "udp" and UdpTransport is not None:
+    try:
+        BUS = UdpTransport(group=MPC_GROUP, port=MPC_PORT)
+        print(f"[transport] UDP multicast enabled @ {MPC_GROUP}:{MPC_PORT}")
+    except Exception as _e:
+        BUS = None
+        print(f"[transport] UDP init failed, fallback to shared-memory only: {_e}")
 
 # ------------------------------------------------------------
 # Logging controls (do not require runtime dependencies)
@@ -576,7 +593,8 @@ def QuadrotorMPC_wrapper(args):
         ref_xi_full[k*nxi:(k+1)*nxi] = ref_xq_flat.reshape((nq, horizon+1, nxi))[i, k, :]
         ref_ui_full[k*nui:(k+1)*nui] = ref_uq_flat.reshape((nq, horizon,   nui))[i, k, :]
         xl_trajh[k*nxl:(k+1)*nxl]    = xl_traj[k,:]
-    ref_xi_full[horizon*nxi:(horizon+1)*nxi] = np.reshape(ref_xi[:,horizon], nxi)
+    # terminal reference state for quadrotor i
+    ref_xi_full[horizon*nxi:(horizon+1)*nxi] = ref_xq_flat.reshape((nq, horizon+1, nxi))[i, horizon, :]
     xl_trajh[horizon*nxl:(horizon+1)*nxl]    = xl_traj[horizon,:]
     Para_i = np.reshape(Para_i, npi)
 
@@ -681,6 +699,16 @@ def Distributed_forwardMPC_Parallel(xq_fb, xl_fb, xq_traj_prev, uq_traj_prev, xl
                 index_dict,
                 horizon, nxi, nui, nxl, npi, nq
             ))
+
+        # Optional: broadcast latest state/refs for external consumers via UDP
+        if BUS is not None:
+            try:
+                for i_b in range(nq):
+                    BUS.send({"topic": "xq_fb", "drone": int(i_b), "data": np.reshape(xq_fb[i_b], nxi).tolist()})
+                    BUS.send({"topic": "ref_xq", "drone": int(i_b), "data": np.ravel(Ref_xq[i_b]).tolist()})
+                    BUS.send({"topic": "ref_uq", "drone": int(i_b), "data": np.ravel(Ref_uq[i_b]).tolist()})
+            except Exception:
+                pass
 
         # Parallel execution of QuadrotorMPC_wrapper (use async to overlap)
         async_res = pool.map_async(QuadrotorMPC_wrapper, task_args)
