@@ -10,6 +10,13 @@ Wang, Bingheng at Control and Simulation Lab, ECE Dept. NUS, Singapore
     "DiffTune-MPC: Closed-loop Learning for Model Predictive Control"
     arXiv preprint arXiv:2312.11384 (2023).
 """
+import os
+# Limit BLAS/OMP threads to avoid oversubscription in multi-process setting
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+
 import Dynamics
 import NeuralNet
 import Robust_Flight_MPC_acados
@@ -17,7 +24,6 @@ from casadi import *
 import numpy as np
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
-import os
 import math
 import torch
 import time as TM
@@ -36,6 +42,22 @@ ctrlmode = input("enter 's' or 'p' without the quotation mark:") # s: sequential
 print("========================================")
 
 mode = 'cl_'+str(ctrlmode)
+
+# ------------------------------------------------------------
+# Logging controls (do not require runtime dependencies)
+# Controlled by environment variables; safe defaults provided
+LOG_EVERY = int(os.environ.get("LOG_EVERY", "10"))            # MPC iteration logs
+STEP_LOG_EVERY = int(os.environ.get("STEP_LOG_EVERY", "10"))  # High-frequency step logs
+ENABLE_SHAPE_ASSERT = os.environ.get("SHAPE_ASSERT", "0") == "1"
+
+def _maybe_log(step: int, every: int, *args):
+    try:
+        if every > 0 and (step % every) == 0:
+            print(*args)
+    except Exception:
+        # Fallback to always print on any unexpected condition
+        print(*args)
+
 # # Get the package share directory
 # package_share_directory = ament_index_python.get_package_share_directory('px4_offboard')
 # # XXX Registe the NeuralNet Class as model to load the nn_load.pt
@@ -469,17 +491,44 @@ index_dict = {
             'buffer_size': buffer_size
         }
 
+# add shared sections for references and current state (zero-copy access)
+ref_xq_size = nq*(horizon+1)*nxi
+ref_uq_size = nq*horizon*nui
+xq_fb_size  = nq*nxi
+start_ref_xq = start_ul + ul_size
+start_ref_uq = start_ref_xq + ref_xq_size
+start_xq_fb  = start_ref_uq + ref_uq_size
+buffer_size  = start_xq_fb + xq_fb_size
+
+index_dict.update({
+    'start_ref_xq': start_ref_xq,
+    'start_ref_uq': start_ref_uq,
+    'start_xq_fb':  start_xq_fb,
+    'buffer_size':  buffer_size
+})
+
+_static = { 'shapes_inited': False }
+def _ensure_buffers(nq, horizon, nxi, nui, nxl):
+    if _static.get('shapes_inited'):
+        return
+    _static['ref_xi_full'] = np.empty(nxi*(horizon+1), dtype=np.float64)
+    _static['ref_ui_full'] = np.empty(nui*horizon, dtype=np.float64)
+    _static['xl_trajh']    = np.empty(nxl*(horizon+1), dtype=np.float64)
+    _static['xq_i']        = np.empty((nq-1)*2*(horizon+1), dtype=np.float64)
+    _static['xi_opt']      = np.empty((horizon+1, nxi), dtype=np.float64)
+    _static['ui_opt']      = np.empty((horizon,   nui), dtype=np.float64)
+    _static['shapes_inited'] = True
+
 def QuadrotorMPC_wrapper(args):
     """
     Using shared memory to reduce the overhead of transferring large data between processes.
     Extract xq_traj, uq_traj, xl_traj, ul_traj and other data from shared_mem_name as needed to compute the results.
     """
-    (i, xi_fb, ref_xi, ref_ui, Para_i, shared_mem_name, 
+    (i, Para_i, shared_mem_name, 
      index_dict, horizon, nxi, nui, nxl, npi, nq) = args
     
     existing_shm = shared_memory.SharedMemory(name=shared_mem_name)
     buffer = np.ndarray((index_dict['buffer_size'],), dtype=ctypes.c_double, buffer=existing_shm.buf)
-    local_buffer = buffer.copy()  # Copy the shared memory data to local variables
 
     # Recover the trajectories into their original shapes
     # xq_traj: shape = (nq, horizon+1, nxi)
@@ -490,15 +539,23 @@ def QuadrotorMPC_wrapper(args):
     start_uq = index_dict['start_uq']
     start_xl = index_dict['start_xl']
     start_ul = index_dict['start_ul']
+    start_ref_xq = index_dict['start_ref_xq']
+    start_ref_uq = index_dict['start_ref_uq']
+    start_xq_fb  = index_dict['start_xq_fb']
 
     # xq_traj_flat = buffer[start_xq : start_xq + nq*(horizon+1)*nxi]
     # uq_traj_flat = buffer[start_uq : start_uq + nq*horizon*nui]
     # xl_traj_flat = buffer[start_xl : start_xl + (horizon+1)*nxl]
     # ul_traj_flat = buffer[start_ul : start_ul + horizon*nul]
-    xq_traj_flat = local_buffer[start_xq : start_xq + nq*(horizon+1)*nxi]
-    uq_traj_flat = local_buffer[start_uq : start_uq + nq*horizon*nui]
-    xl_traj_flat = local_buffer[start_xl : start_xl + (horizon+1)*nxl]
-    ul_traj_flat = local_buffer[start_ul : start_ul + horizon*nul]
+    xq_traj_flat = buffer[start_xq : start_xq + nq*(horizon+1)*nxi]
+    uq_traj_flat = buffer[start_uq : start_uq + nq*horizon*nui]
+    xl_traj_flat = buffer[start_xl : start_xl + (horizon+1)*nxl]
+    ul_traj_flat = buffer[start_ul : start_ul + horizon*nul]
+
+    # references and current state from shared memory (zero-copy views)
+    ref_xq_flat  = buffer[start_ref_xq : start_ref_xq + nq*(horizon+1)*nxi]
+    ref_uq_flat  = buffer[start_ref_uq : start_ref_uq + nq*horizon*nui]
+    xq_fb_flat   = buffer[start_xq_fb  : start_xq_fb  + nq*nxi]
 
 
     xq_traj = xq_traj_flat.reshape((nq, horizon+1, nxi))
@@ -506,24 +563,25 @@ def QuadrotorMPC_wrapper(args):
     xl_traj = xl_traj_flat.reshape((horizon+1, nxl))
     ul_traj = ul_traj_flat.reshape((horizon, nul)) 
 
-    xi_opt = np.zeros((horizon+1, nxi))
-    ui_opt = np.zeros((horizon, nui))
-    xi_fb = np.reshape(xi_fb, nxi)
-
-    ref_xi_full = np.zeros(nxi*(horizon+1))
-    ref_ui_full = np.zeros(nui*horizon)
-    xl_trajh    = np.zeros(nxl*(horizon+1))
+    _ensure_buffers(nq, horizon, nxi, nui, nxl)
+    xi_opt = _static['xi_opt']
+    ui_opt = _static['ui_opt']
+    ref_xi_full = _static['ref_xi_full']
+    ref_ui_full = _static['ref_ui_full']
+    xl_trajh    = _static['xl_trajh']
+    xi_fb_all   = xq_fb_flat.reshape((nq, nxi))
+    xi_fb       = xi_fb_all[i]
 
     for k in range(horizon):
-        ref_xi_full[k*nxi:(k+1)*nxi] = np.reshape(ref_xi[:,k], nxi)
-        ref_ui_full[k*nui:(k+1)*nui] = np.reshape(ref_ui[:,k], nui)
+        ref_xi_full[k*nxi:(k+1)*nxi] = ref_xq_flat.reshape((nq, horizon+1, nxi))[i, k, :]
+        ref_ui_full[k*nui:(k+1)*nui] = ref_uq_flat.reshape((nq, horizon,   nui))[i, k, :]
         xl_trajh[k*nxl:(k+1)*nxl]    = xl_traj[k,:]
     ref_xi_full[horizon*nxi:(horizon+1)*nxi] = np.reshape(ref_xi[:,horizon], nxi)
     xl_trajh[horizon*nxl:(horizon+1)*nxl]    = xl_traj[horizon,:]
     Para_i = np.reshape(Para_i, npi)
 
     # Shape the xq_i
-    xq_i = np.zeros((nq-1)*2*(horizon+1))
+    xq_i = _static['xq_i']
     kj   = 0
     for j in range(nq):
         if j != i:
@@ -608,26 +666,36 @@ def Distributed_forwardMPC_Parallel(xq_fb, xl_fb, xq_traj_prev, uq_traj_prev, xl
         buffer[start_xl : start_xl + xl_size] = xl_arr
         buffer[start_ul : start_ul + ul_size] = ul_arr
 
-        # Prepare task arguments for each quadrotor
+        # Write references and current state into shared memory
+        buffer[start_ref_xq : start_ref_xq + ref_xq_size] = np.ravel(np.array(Ref_xq))
+        buffer[start_ref_uq : start_ref_uq + ref_uq_size] = np.ravel(np.array(Ref_uq))
+        buffer[start_xq_fb  : start_xq_fb  + xq_fb_size ] = np.ravel(np.array(xq_fb))
+
+        # Prepare task arguments for each quadrotor (indices only)
         task_args = []
         for i in range(nq):
-            # Shape Ref_xi, Ref_ui
-            quad_ref_xi = Ref_xq[i]
-            quad_ref_ui = Ref_uq[i]
             task_args.append((
                 i,
-                xq_fb[i],
-                quad_ref_xi,
-                quad_ref_ui,
                 Para_q[i],
                 shm.name,
                 index_dict,
                 horizon, nxi, nui, nxl, npi, nq
             ))
 
-        # Parallel execution of QuadrotorMPC_wrapper
-        # with Pool(processes=nq) as pool:
-        results = pool.map(QuadrotorMPC_wrapper, task_args)
+        # Parallel execution of QuadrotorMPC_wrapper (use async to overlap)
+        async_res = pool.map_async(QuadrotorMPC_wrapper, task_args)
+
+        # While workers run, prepare payload references that do not depend on xq_traj results
+        xl_fbh   = np.reshape(xl_fb, nxl)
+        ref_xl   = np.zeros(nxl*(horizon+1))
+        ref_ul   = np.zeros(nul*horizon)
+        for k in range(horizon):
+            ref_xl[k*nxl:(k+1)*nxl] = np.reshape(Ref_xl[:,k],nxl)
+            ref_ul[k*nul:(k+1)*nul] = np.reshape(Ref_ul[:,k],nul)
+        ref_xl[horizon*nxl:(horizon+1)*nxl] = np.reshape(Ref_xl[:,horizon],nxl)
+        Para_lh  = np.reshape(Para_l, npl)
+
+        results = async_res.get()
 
         # tasks = [
         #     delayed(QuadrotorMPC_wrapper)(
@@ -644,22 +712,14 @@ def Distributed_forwardMPC_Parallel(xq_fb, xl_fb, xq_traj_prev, uq_traj_prev, xl
             i, xi_opt, ui_opt, viol_xi, viol_ui = res
             xq_traj[i] = xi_opt
             uq_traj[i] = ui_opt
-            print('iteration=', ke, 'quadrotor_ID=', i,
-                  'viol_xi=', format(viol_xi, '.5f'),
-                  'viol_ui=', format(viol_ui, '.5f'))
+            _maybe_log(ke, LOG_EVERY,
+                       'iteration=', ke, 'quadrotor_ID=', i,
+                       'viol_xi=', format(viol_xi, '.5f'),
+                       'viol_ui=', format(viol_ui, '.5f'))
             viol_x.append(viol_xi)
             viol_u.append(viol_ui)
 
         # payload MPC
-        xl_fbh   = np.reshape(xl_fb, nxl)
-        ref_xl   = np.zeros(nxl*(horizon+1))
-        ref_ul   = np.zeros(nul*horizon)
-        for k in range(horizon):
-            ref_xl[k*nxl:(k+1)*nxl] = np.reshape(Ref_xl[:,k],nxl)
-            ref_ul[k*nul:(k+1)*nul] = np.reshape(Ref_ul[:,k],nul)
-        ref_xl[horizon*nxl:(horizon+1)*nxl] = np.reshape(Ref_xl[:,horizon],nxl)
-        Para_lh  = np.reshape(Para_l, npl)
-
         xq_h = np.zeros(nq*nxi*(horizon+1))
         for j in range(nq):
             xq_j  = xq_traj[j]
@@ -687,10 +747,11 @@ def Distributed_forwardMPC_Parallel(xq_fb, xl_fb, xq_traj_prev, uq_traj_prev, xl
         viol_u.append(viol_ul)
         initial_error = LA.norm(np.reshape(xl_opt[0,:],(nxl,1)) - xl_fb)
 
-        print('iteration=', ke, 'payload:', 
-              'viol_xl=', format(viol_xl, '.5f'),
-              'viol_ul=', format(viol_ul, '.5f'),
-              'viol_x0l=', initial_error)
+        _maybe_log(ke, LOG_EVERY,
+                   'iteration=', ke, 'payload:', 
+                   'viol_xl=', format(viol_xl, '.5f'),
+                   'viol_ul=', format(viol_ul, '.5f'),
+                   'viol_x0l=', initial_error)
 
         xl_traj = xl_opt
         ul_traj = ul_opt
@@ -698,7 +759,8 @@ def Distributed_forwardMPC_Parallel(xq_fb, xl_fb, xq_traj_prev, uq_traj_prev, xl
         viol_all = np.concatenate((viol_x, viol_u))
         if ke > 1:
             max_violation = np.max(viol_all)
-        print('iteration=', ke, 'max_violation=', format(max_violation, '.5f'))
+        _maybe_log(ke, LOG_EVERY,
+                   'iteration=', ke, 'max_violation=', format(max_violation, '.5f'))
         ke += 1
 
     opt_system = {
@@ -954,12 +1016,12 @@ def Evaluate(shared_mem_name, pool=None):
         Quad_Control += [uq]
         Tension_Load_Actual += [ul]
         Tension_Load_MPC    += [ul_traj[0,:]]
-        print('k=',k,'Tension =',ul.T,'ul=',ul_traj[0,:])
-        print('k=',k,'Tension difference =',ul_traj[0,:]-ul.T,'L1-AC estimation =',np.reshape(Uad_lpf,(1,nul)))
-        print('k=',k,'ref_pl=',Ref0_l[0:3,0].T,'pl=',pl.T,'norm of vl=',format(Vl[-1],'.2f'),'Eulerl=',np.reshape(57.3*Eulerl,(3)))
+        _maybe_log(k, STEP_LOG_EVERY, 'k=',k,'Tension =',ul.T,'ul=',ul_traj[0,:])
+        _maybe_log(k, STEP_LOG_EVERY, 'k=',k,'Tension difference =',ul_traj[0,:]-ul.T,'L1-AC estimation =',np.reshape(Uad_lpf,(1,nul)))
+        _maybe_log(k, STEP_LOG_EVERY, 'k=',k,'ref_pl=',Ref0_l[0:3,0].T,'pl=',pl.T,'norm of vl=',format(Vl[-1],'.2f'),'Eulerl=',np.reshape(57.3*Eulerl,(3)))
         for i in range(nq):
-            print('k=',k,'quadrotor:',i,'ref_p=',Ref0_xq[i][0:3,0].T,'p=',Quad_State[-1][i][0:3,0].T,'Euler=',np.reshape(57.3*EULERi[i],(3)))
-            print('k=',k,'quadrotor:',i,'ctrl=',uq[i].T)
+            _maybe_log(k, STEP_LOG_EVERY, 'k=',k,'quadrotor:',i,'ref_p=',Ref0_xq[i][0:3,0].T,'p=',Quad_State[-1][i][0:3,0].T,'Euler=',np.reshape(57.3*EULERi[i],(3)))
+            _maybe_log(k, STEP_LOG_EVERY, 'k=',k,'quadrotor:',i,'ctrl=',uq[i].T)
             
         # update the system states using the 'step' function
         Xq           = np.zeros((nxi,nq))

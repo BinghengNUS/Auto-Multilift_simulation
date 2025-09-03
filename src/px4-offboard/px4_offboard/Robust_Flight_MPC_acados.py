@@ -644,15 +644,18 @@ class MPC:
             OCP_q[i].constraints.idxbu = np.array([i for i in range(self.n_ui)])
 
             ##-------set the solver--------##
-            OCP_q[i].solver_options.qp_solver = 'FULL_CONDENSING_QPOASES'
+            OCP_q[i].solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'
             OCP_q[i].solver_options.hessian_approx = 'GAUSS_NEWTON'
             OCP_q[i].solver_options.regularize_method = 'CONVEXIFY'
             OCP_q[i].solver_options.integrator_type = 'ERK'
             OCP_q[i].solver_options.sim_method_num_stages = 4 # default 4, meaning 4-th order Runge Kutta
             OCP_q[i].solver_options.print_level = 0
             OCP_q[i].solver_options.levenberg_marquardt = 1e-10 # small value for gauss newton method, large value for gradient descent method
-            # OCP_q[i].solver_options.nlp_solver_type = 'SQP_RTI' # SQP_RTI or SQP
-            OCP_q[i].solver_options.nlp_solver_type = 'SQP' # SQP FOR PARALLEL
+            OCP_q[i].solver_options.nlp_solver_type = 'SQP'
+            # Warm-start & condensing granularity
+            OCP_q[i].solver_options.qp_solver_cond_N = 4
+            OCP_q[i].solver_options.warm_start_first_qp = 1
+            OCP_q[i].solver_options.qp_warm_start = 1
             # ocp.solver_options.nlp_solver_max_iter = 100
 
             ##-------set the code generation--------##
@@ -856,14 +859,17 @@ class MPC:
         OCP_q.constraints.idxbu = np.array([i for i in range(self.n_ui)])
 
         ##-------set the solver--------##
-        OCP_q.solver_options.qp_solver = 'FULL_CONDENSING_QPOASES'
+        OCP_q.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'
         OCP_q.solver_options.hessian_approx = 'GAUSS_NEWTON'
         OCP_q.solver_options.regularize_method = 'CONVEXIFY'
         OCP_q.solver_options.integrator_type = 'ERK'
         OCP_q.solver_options.sim_method_num_stages = 4 # default 4, meaning 4-th order Runge Kutta
         OCP_q.solver_options.print_level = 0
         OCP_q.solver_options.levenberg_marquardt = 1e-10 # small value for gauss newton method, large value for gradient descent method
-        OCP_q.solver_options.nlp_solver_type = 'SQP_RTI' # SQP_RTI or SQP
+        OCP_q.solver_options.nlp_solver_type = 'SQP'
+        OCP_q.solver_options.qp_solver_cond_N = 4
+        OCP_q.solver_options.warm_start_first_qp = 1
+        OCP_q.solver_options.qp_warm_start = 1
         # OCP_q.solver_options.nlp_solver_type = 'SQP' # SQP FOR PARALLEL
         # ocp.solver_options.nlp_solver_max_iter = 100
 
@@ -1203,15 +1209,17 @@ class MPC:
         ocpl.constraints.idxbu = np.array([i for i in range(self.n_ul)])
 
         ##-------set the solver--------##
-        ocpl.solver_options.qp_solver = 'FULL_CONDENSING_QPOASES'
+        ocpl.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'
         ocpl.solver_options.hessian_approx = 'GAUSS_NEWTON'
         ocpl.solver_options.regularize_method = 'CONVEXIFY'
         ocpl.solver_options.integrator_type = 'ERK'
         ocpl.solver_options.sim_method_num_stages = 4 # default 4
         ocpl.solver_options.print_level = 0
         ocpl.solver_options.levenberg_marquardt = 1e-10 # small value for gauss newton method, large value for gradient descent method
-        # ocpl.solver_options.nlp_solver_type ='SQP_RTI' # SQP_RTI or SQP
-        ocpl.solver_options.nlp_solver_type ='SQP' # SQP FOR PARALLEL
+        ocpl.solver_options.nlp_solver_type ='SQP'
+        ocpl.solver_options.qp_solver_cond_N = 4
+        ocpl.solver_options.warm_start_first_qp = 1
+        ocpl.solver_options.qp_warm_start = 1
         # ocpl.solver_options.nlp_solver_max_iter = 100
 
         ##-------set the code generation--------##
