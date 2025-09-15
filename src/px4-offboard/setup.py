@@ -37,6 +37,10 @@ setup(
                 # Geometric control
                 'geom_multi = px4_offboard.geom_multi:main',
                 'clock_sync_node = px4_offboard.clock_sync_node:main',
+                
+                # Multilift MPC nodes
+                'multilift_sync_node = px4_offboard.multilift_sync_node:main',
+                'multilift_quad_node = px4_offboard.multilift_quad_node:main',
         ],
     },
 )

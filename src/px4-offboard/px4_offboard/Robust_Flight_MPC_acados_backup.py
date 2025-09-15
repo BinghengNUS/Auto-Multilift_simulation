@@ -644,23 +644,19 @@ class MPC:
             OCP_q[i].constraints.idxbu = np.array([i for i in range(self.n_ui)])
 
             ##-------set the solver--------##
-            # 高性能优化的ACADOS求解器配置 - 优先速度
-            OCP_q[i].solver_options.qp_solver = 'FULL_CONDENSING_QPOASES'  # 使用qpOASES获得更快速度
+            OCP_q[i].solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'
             OCP_q[i].solver_options.hessian_approx = 'GAUSS_NEWTON'
             OCP_q[i].solver_options.regularize_method = 'CONVEXIFY'
             OCP_q[i].solver_options.integrator_type = 'ERK'
-            OCP_q[i].solver_options.sim_method_num_stages = 2  # 降低到2阶以提高速度
+            OCP_q[i].solver_options.sim_method_num_stages = 4 # default 4, meaning 4-th order Runge Kutta
             OCP_q[i].solver_options.print_level = 0
-            OCP_q[i].solver_options.levenberg_marquardt = 1e-8  # 稍微增加以提高收敛速度
+            OCP_q[i].solver_options.levenberg_marquardt = 1e-10 # small value for gauss newton method, large value for gradient descent method
             OCP_q[i].solver_options.nlp_solver_type = 'SQP'
-            # 优化热启动和压缩参数
-            OCP_q[i].solver_options.qp_solver_cond_N = 2  # 减少压缩粒度以提高速度
+            # Warm-start & condensing granularity
+            OCP_q[i].solver_options.qp_solver_cond_N = 4
             OCP_q[i].solver_options.warm_start_first_qp = 1
             OCP_q[i].solver_options.qp_warm_start = 1
-            # 设置更激进的迭代次数限制以提高速度
-            OCP_q[i].solver_options.nlp_solver_max_iter = 30  # 大幅减少最大迭代次数
-            OCP_q[i].solver_options.qp_solver_iter_max = 30   # 大幅减少QP求解器迭代次数
-            OCP_q[i].solver_options.tol = 1e-4  # 放宽收敛容差以提高速度
+            # ocp.solver_options.nlp_solver_max_iter = 100
 
             ##-------set the code generation--------##
             # compile acados ocp
@@ -863,23 +859,19 @@ class MPC:
         OCP_q.constraints.idxbu = np.array([i for i in range(self.n_ui)])
 
         ##-------set the solver--------##
-        # 优化后的ACADOS求解器配置 - 提高求解速度
-        OCP_q.solver_options.qp_solver = 'FULL_CONDENSING_QPOASES'  # 更快的QP求解器
+        OCP_q.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'
         OCP_q.solver_options.hessian_approx = 'GAUSS_NEWTON'
         OCP_q.solver_options.regularize_method = 'CONVEXIFY'
         OCP_q.solver_options.integrator_type = 'ERK'
-        OCP_q.solver_options.sim_method_num_stages = 2  # 降低到2阶以提高速度
+        OCP_q.solver_options.sim_method_num_stages = 4 # default 4, meaning 4-th order Runge Kutta
         OCP_q.solver_options.print_level = 0
-        OCP_q.solver_options.levenberg_marquardt = 1e-8  # 稍微增加以提高收敛速度
+        OCP_q.solver_options.levenberg_marquardt = 1e-10 # small value for gauss newton method, large value for gradient descent method
         OCP_q.solver_options.nlp_solver_type = 'SQP'
-        # 优化热启动和压缩参数
-        OCP_q.solver_options.qp_solver_cond_N = 2  # 减少压缩粒度以提高速度
+        OCP_q.solver_options.qp_solver_cond_N = 4
         OCP_q.solver_options.warm_start_first_qp = 1
         OCP_q.solver_options.qp_warm_start = 1
-        # 设置最大迭代次数以提高实时性
-        OCP_q.solver_options.nlp_solver_max_iter = 50  # 减少最大迭代次数
-        OCP_q.solver_options.qp_solver_iter_max = 50   # 减少QP求解器最大迭代次数
-        OCP_q.solver_options.tol = 1e-4  # 放宽收敛容差以提高速度
+        # OCP_q.solver_options.nlp_solver_type = 'SQP' # SQP FOR PARALLEL
+        # ocp.solver_options.nlp_solver_max_iter = 100
 
         ##-------set the code generation--------##
         # NOTE Multi process should build in different folders!!!
@@ -1217,23 +1209,18 @@ class MPC:
         ocpl.constraints.idxbu = np.array([i for i in range(self.n_ul)])
 
         ##-------set the solver--------##
-        # 高性能优化的负载MPC ACADOS求解器配置 - 优先速度
-        ocpl.solver_options.qp_solver = 'FULL_CONDENSING_QPOASES'  # 使用qpOASES获得更快速度
+        ocpl.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'
         ocpl.solver_options.hessian_approx = 'GAUSS_NEWTON'
         ocpl.solver_options.regularize_method = 'CONVEXIFY'
         ocpl.solver_options.integrator_type = 'ERK'
-        ocpl.solver_options.sim_method_num_stages = 2  # 降低到2阶以提高速度
+        ocpl.solver_options.sim_method_num_stages = 4 # default 4
         ocpl.solver_options.print_level = 0
-        ocpl.solver_options.levenberg_marquardt = 1e-8  # 稍微增加以提高收敛速度
-        ocpl.solver_options.nlp_solver_type = 'SQP'
-        # 优化热启动和压缩参数
-        ocpl.solver_options.qp_solver_cond_N = 3  # 减少压缩粒度以提高速度
+        ocpl.solver_options.levenberg_marquardt = 1e-10 # small value for gauss newton method, large value for gradient descent method
+        ocpl.solver_options.nlp_solver_type ='SQP'
+        ocpl.solver_options.qp_solver_cond_N = 4
         ocpl.solver_options.warm_start_first_qp = 1
         ocpl.solver_options.qp_warm_start = 1
-        # 设置更激进的迭代次数限制以提高速度
-        ocpl.solver_options.nlp_solver_max_iter = 30  # 大幅减少最大迭代次数
-        ocpl.solver_options.qp_solver_iter_max = 30   # 大幅减少QP求解器迭代次数
-        ocpl.solver_options.tol = 1e-5  # 放宽收敛容差以提高速度
+        # ocpl.solver_options.nlp_solver_max_iter = 100
 
         ##-------set the code generation--------##
         # compile acados ocp
