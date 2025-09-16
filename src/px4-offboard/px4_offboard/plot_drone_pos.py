@@ -8,7 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 # 1)  Load reference data
 
-from get_data_new import DataLoader
+from get_data import DataLoader
 data = DataLoader()
 
 

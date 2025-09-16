@@ -17,7 +17,7 @@ import tf2_ros
 from rclpy.qos import (
     QoSProfile, QoSHistoryPolicy, QoSReliabilityPolicy, QoSDurabilityPolicy
 )
-
+from px4_offboard.get_data import DataLoader
 
 # --------------------------------------------------------------------------- #
 # QoS profile identical to PX4 default sensor streams
@@ -78,8 +78,8 @@ class PX4WorldTF(Node):
     def __init__(self):
         super().__init__('px4_world_tf_static')
 
-        self.drones = 6
-        self.namespaces = ['', '/px4_1', '/px4_2', '/px4_3', '/px4_4', '/px4_5']
+        self.drones = DataLoader().num_drones  # number of drones
+        self.namespaces = ['', '/px4_1', '/px4_2', '/px4_3', '/px4_4', '/px4_5', '/px4_6']
         self.publish_rate_hz = 250.0
 
         self.init_tf   = [None] * self.drones   # first /drone_i_init_pos

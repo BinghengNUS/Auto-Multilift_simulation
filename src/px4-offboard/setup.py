@@ -31,6 +31,7 @@ setup(
                 'visualizer = px4_offboard.visualizer:main',
                 'geom_multilift = px4_offboard.geom_multilift:main',
                 'clock_sync_node = px4_offboard.clock_sync_node:main',
+                'get_data = px4_offboard.get_data:main',
         ],
     },
 )

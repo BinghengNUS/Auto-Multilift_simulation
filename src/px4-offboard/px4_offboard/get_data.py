@@ -5,6 +5,7 @@
 import numpy as np
 from casadi import *
 import math
+# from pxr import Gf
 
 class DataLoader():
     """
@@ -12,19 +13,17 @@ class DataLoader():
     """
     def __init__(self):
         self.num_drones = 3
+        # self.CoM = Gf.Vec3f(-0.03, 0.02, 0.0)
         self.dt = 0.01  # 100Hz
         self.rl = 0.25
         self.alpha  = 2 * np.pi / self.num_drones
         self.cable_length = 1.0
-        # self.path = f'/home/carlson/ros2/multilift_ws/6quad_traj/Planning_plots_multiagent_meta_evaluation (rg_-003_-002_100Hz_6s_l=1m_large_dist_new_smooth_useThis)'
-        self.path = f'/home/carlson/ros2/multilift_ws/3quad_traj/Planning_plots_multiagent_meta_evaluation (rg_-003_-002_3quad_l=1m_100Hz_smooth_useThis)'
-        # self.rg_task = np.load(f'{self.path}/trained_data_meta/rg_task.npy')    # the CoM offset of the payload
+        self.path = f'/home/carlson/ros2/multilift_ws/{self.num_drones}quad_traj/Planning_plots_multiagent_meta_evaluation (rg_-003_002_{self.num_drones}quad_l=1m_100Hz_smooth_useThis)'
         self.ml = 1.50   # payload mass
         self.g = 9.81   # gravity
         self.train_idx = -1
         self.task_idx = 0
         self.ez = np.array([0,0,1]).reshape(3,1)
-        # self.rg = np.hstack((self.rg_task, np.zeros((self.rg_task.shape[0],1)))) # payload-CoM offset
         
         # coefficients of the trajectory
         self.Coeffx = np.zeros((2,8))
@@ -38,7 +37,7 @@ class DataLoader():
         # payload trajectory 
         self.xl_train = np.load(f'{self.path}/xl_traj.npy', allow_pickle=True)
         segment_xl = self.xl_train   # shape (101, 13)
-        print(f'xl shape{segment_xl.shape}')
+        # print(f'xl shape{segment_xl.shape}')
         self.payload_x = segment_xl[:, 0:3]     # (101, 3) payload position
         self.payload_v = segment_xl[:, 3:6]     # (101, 3) payload velovity
         self.payload_q = segment_xl[:, 6:10]    # (101, 4) payload attitude quaternion
@@ -48,7 +47,6 @@ class DataLoader():
         self.xc_train = np.load(f'{self.path}/xq_traj.npy', allow_pickle=True)
         segment_xc = self.xc_train  # shape (6, 101, 7)
         # cable direction
-        # self.cable_direction = np.load(f'Planning_plots_meta/cable_direction_{self.task_idx}.npy', allow_pickle=True)
         self.cable_direction = segment_xc[:, :, 0:3]  # (6, 101, 3) cable direction 
         # cable angular velocity omega
         self.cable_omega = segment_xc[:, :, 3:6]  # (6, 101, 3) cable angular velocity 

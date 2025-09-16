@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 ROSGeomState pose collector for geometric controllers
-Author : Yichao Gao ( 11-Aug 2025 modified)
+Author : Yichao Gao ( 11-Sept 2025 modified)
 """
 
 import rclpy
@@ -22,7 +22,7 @@ from px4_msgs.msg import VehicleOdometry, VehicleLocalPosition, VehicleLocalPosi
 from px4_offboard.matrix_utils import hat, vee, ensure_SO3
 from rclpy.executors import MultiThreadedExecutor
 from px4_offboard.rotation_to_quaternion import rotation_matrix_to_quaternion
-from px4_offboard.get_data_new import DataLoader
+from px4_offboard.get_data import DataLoader
 from std_msgs.msg import Int32
 
 import math, pathlib, atexit
@@ -31,7 +31,7 @@ from typing import Tuple
 
 
 
-NUM_DRONES = 3  # default number of drones
+NUM_DRONES = DataLoader().num_drones  # default number of drones
 CTRL_HZ = 100.0  # default control frequency [Hz]
 DATA_HZ = 100.0
 
@@ -640,7 +640,7 @@ class GeomLiftCtrl(Node):
         self.payload_m = 1.50
         self.m_drones = 0.250      # drone mass    [kg]
         # self.max_thrust = 2.58 * self.m_drones * 9.81    # for 1kg drone
-        self.max_thrust = 7.80 * self.m_drones * 9.81  # max thrust per drone [N] for 250g drone
+        self.max_thrust = 8.0 * self.m_drones * 9.81  # max thrust per drone [N] for 250g drone
         self.l    = 1.0         # cable length   [m]
         self.g    = np.array([0.0, 0.0, 9.81])
         
@@ -701,6 +701,7 @@ class GeomLiftCtrl(Node):
         # self.mu_id_ddot_f = FirstOrderLowPass(cutoff_hz=8.0)
         # self.Omega_0_dot_f = FirstOrderLowPass(cutoff_hz=10.0)
         # self.mu_f = [FirstOrderLowPass(cutoff_hz=20.0)   for _ in range(self.n)]
+        
         # second order butterworth filter
         self.mu_id_dot_f = SecondOrderButterworth(cutoff_hz=10.0)
         self.mu_id_ddot_f = SecondOrderButterworth(cutoff_hz=10.0)
@@ -713,12 +714,12 @@ class GeomLiftCtrl(Node):
         # self.kw = 3.40
         self.kq = 9.50
         self.kw = 3.40
-        self.z_weight = 0.40    # weight for the geometric control z axis
+        self.z_weight = 0.30    # weight for the geometric control z axis
 
 
         self.k_ddp = np.zeros((6,13))
         # self.alpha = 0.0       # DDP feedback gain 
-        self.alpha = 0.07
+        self.alpha = 0.05
 
         # self.slowdown = 1.25     # for test only, no slowdown
         self.slowdown = 1.0     # no slowdown

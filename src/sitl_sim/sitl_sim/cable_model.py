@@ -50,8 +50,8 @@ class RigidBodyRopes(demo.Base):
         # self._payloadInertia = Gf.Vec3f(0.094, 0.093, 0.185)  # rotational inertia about CoM
         # self._payloadInertia = Gf.Vec3f(0.25, 0.25, 0.25)
         # self._payloadCoM = Gf.Vec3f(0.01, -0.01 , 0)    # center of mass 
-        # self._payloadCoM = Gf.Vec3f(-0.03, 0.02 , 0)
-        self._payloadCoM = Gf.Vec3f(-0.03, -0.02 , 0)
+        self._payloadCoM = Gf.Vec3f(-0.03, 0.02 , 0)
+        # self._payloadCoM = Gf.Vec3f(-0.03, -0.02 , 0)
         # self._payloadPrincipleAxes = Gf.Vec3f(1, 0, 0)  # principal axes of the payload
 
         # self._initLoadHeight = load_height

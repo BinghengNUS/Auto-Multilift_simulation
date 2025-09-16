@@ -74,11 +74,7 @@ class Sim:
         self.world     = self.pg.world
 
         phys_ctx = self.world.get_physics_context()
-        # phys_ctx.enable_gpu_dynamics(True)
-        # self.pg.load_environment(SIMULATION_ENVIRONMENTS["Default Environment"])
-        # self.pg.load_environment(SIMULATION_ENVIRONMENTS["Flat Plane"])
         self.pg.load_environment(SIMULATION_ENVIRONMENTS["Curved Gridroom"])
-        # self.pg.load_environment(SIMULATION_ENVIRONMENTS["Black Gridroom"])
 
 
         prim_utils.create_prim(
@@ -92,11 +88,6 @@ class CameraCapture:
     def __init__(self, sim, camera_path,sim_time, start_time) -> None:
         # get the simulation interface
         self.sim = sim
-        # # camera config
-        # self.camera_path = camera_path
-        # self.camera = Camera(camera_path)
-        # self.camera.set_resolution(2560, 1440)
-        # self.camera.set_fov(90)
         # time config
         self.period = 0.50
         self.sim_time = sim_time
@@ -169,30 +160,11 @@ def spawn_scene(sim: Sim, node, init_pubs) -> None:
         Multirotor(prim_name, ROBOTS["Iris_modified"], i,
                    drone_pos, Rotation.from_euler("XYZ", [0.0, 0.0, angle*i], degrees=False).as_quat(), config=cfg)
         # # weld rope <-> drone
-        # joint = UsdPhysics.Joint.Define(stage, f"/World/Rope{i}/droneJoint")
-        # d6Prim = joint.GetPrim()
-        # rotatedDOFs = ["rotX", "rotY", "rotZ"]
-        # for axis in ["transX", "transY", "transZ"]:
-        #     limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, axis)
-        #     limitAPI.CreateLowAttr(-0.0005)
-        #     limitAPI.CreateHighAttr(0.0005)
-        # for d in rotatedDOFs:
-        #     limitAPI = UsdPhysics.LimitAPI.Apply(d6Prim, d)
-        #     physx_limit_api = PhysxSchema.PhysxLimitAPI.Apply(d6Prim, d)
-        #     driveAPI = UsdPhysics.DriveAPI.Apply(d6Prim, d)
-        #     driveAPI.CreateTypeAttr("force")
-        #     # driveAPI.CreateStiffnessAttr(0.0005)
-        #     driveAPI.CreateDampingAttr(0.0001)
-        # joint = UsdPhysics.FixedJoint.Define(stage, f"/World/Rope{i}/droneJoint")
         joint = UsdPhysics.SphericalJoint.Define(stage, f"/World/Rope{i}/droneJoint")
         # # joint.CreateAxisAttr("Y")
         joint.CreateBody1Rel().SetTargets([f"{prim_name}/body"])
         joint.CreateBody0Rel().SetTargets([box_path])
         joint.CreateLocalPos1Attr().Set(Gf.Vec3f(0, 0, -0.017))
-        # rot0 = Gf.Rotation(Gf.Vec3d(0.0,0.0,1.0), -angle*i).GetQuat()
-        # rot1 = Gf.Rotation(Gf.Vec3d(0.0,0.0,1.0), 0).GetQuat()
-        # joint.CreateLocalRot0Attr().Set(Gf.Quatf(rot0))
-        # joint.CreateLocalRot1Attr().Set(Gf.Quatf(rot1))
 
         tf = TransformStamped()
         tf.header.stamp    = node.get_clock().now().to_msg()
@@ -206,7 +178,7 @@ def spawn_scene(sim: Sim, node, init_pubs) -> None:
 
     # generate obsticle
     obsticle_1_pos = np.array([1.58,1.16,1])
-    obsticle_2_pos = np.array([0.32,3.15,1])
+    obsticle_2_pos = np.array([0.34,3.17,1])
     obsticle_1 = sim.world.scene.add(
         VisualCylinder(
             prim_path = '/World/Obstical_1',
@@ -224,7 +196,6 @@ def spawn_scene(sim: Sim, node, init_pubs) -> None:
             position = obsticle_2_pos,
             radius = 0.70,
             height = 2.0,
-            # color=np.array([255, 0, 0]),
             color=(np.array([255, 32, 32], dtype=float) / 255.0),
         )
     )
@@ -257,7 +228,6 @@ def spawn_scene(sim: Sim, node, init_pubs) -> None:
     camera = Camera(
         prim_path=CAMERA_STAGE_PATH,
         position=camera_pos,  # 2 meter away from the side of the cube
-        # resolution=(1920, 1080),
         resolution=(2560, 1440),
         orientation=rot_utils.euler_angles_to_quats(np.array([0, 90, -55]), degrees=True),
     )

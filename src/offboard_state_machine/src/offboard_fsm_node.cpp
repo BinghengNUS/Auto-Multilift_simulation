@@ -48,8 +48,7 @@ static float enu_to_ned_yaw(float yaw_enu)
 OffboardFSM::OffboardFSM(int drone_id)
 : Node("offboard_fsm_node_" + std::to_string(drone_id))
 , drone_id_(drone_id)
-, takeoff_alt_    (declare_parameter("takeoff_alt",     1.52))
-// , takeoff_alt_    (declare_parameter("takeoff_alt",     1.19))
+, takeoff_alt_    (declare_parameter("takeoff_alt",     1.51))
 , takeoff_time_s_ (declare_parameter("takeoff_time",    1.0))
 , climb_rate_     (declare_parameter("climb_rate",      1.0))  
 , landing_time_s_ (declare_parameter("landing_time",    5.0))
@@ -58,14 +57,16 @@ OffboardFSM::OffboardFSM(int drone_id)
 , inward_offset_  (declare_parameter("inward_offset",   0.80))
 , num_drones_     (declare_parameter("num_drones",      6))
 , timer_period_s_ (declare_parameter("timer_period",    0.02))
-, alt_tol_        (declare_parameter("alt_tol",         0.025))
+, alt_tol_        (declare_parameter("alt_tol",         0.03))
 , radius_         (declare_parameter("circle_radius_traj", 3.0))
 , period_s_       (declare_parameter("circle_period",   20.0))
 // goto
 , goto_x_       (declare_parameter<double>("goto_x", std::numeric_limits<double>::quiet_NaN()))
 , goto_y_       (declare_parameter<double>("goto_y", std::numeric_limits<double>::quiet_NaN()))
 , goto_z_       (declare_parameter<double>("goto_z", std::numeric_limits<double>::quiet_NaN()))
+// initial state
 , current_state_(FsmState::INIT)
+, offb_counter_(0)
 , takeoff_complete_count_(-1)
 , use_attitude_control_(false)         
 , odom_ready_(false)                   
@@ -188,34 +189,6 @@ void OffboardFSM::timer_cb()
     }
     break;
 
-  // case FsmState::ARMING:
-  //   if (nav_state_ == VehicleStatus::NAVIGATION_STATE_OFFBOARD &&
-  //       arming_state_ == VehicleStatus::ARMING_STATE_ARMED) {
-  //     if (!odom_ready_)        
-  //         break;
-  //     /* -------- MIN-JERK coeffs -------- */
-  //     Eigen::Vector3d q0{current_x_, current_y_, current_z_};
-  //     Eigen::Vector3d qf{takeoff_pos_x_, takeoff_pos_y_, -takeoff_alt_};
-  //     traj_T_    = takeoff_time_s_;
-  //     for (int k = 0; k < 3; ++k) {
-  //       double dq = qf[k] - q0[k];
-  //       poly_[k].a[0] = q0[k];
-  //       poly_[k].a[1] = 0;
-  //       poly_[k].a[2] = 0;
-  //       poly_[k].a[3] =  10*dq / std::pow(traj_T_,3);
-  //       poly_[k].a[4] = -15*dq / std::pow(traj_T_,4);
-  //       poly_[k].a[5] =   6*dq / std::pow(traj_T_,5);
-  //     }
-  //     traj_start_ = now();
-  //     /* ---------------------------------- */
-
-  //     RCLCPP_INFO(get_logger(), "Drone %d armed + offboard, starting take-off", drone_id_);
-  //     current_state_       = FsmState::TAKEOFF;
-  //     offb_counter_        = 0;
-  //   } else {
-  //     try_set_offboard_and_arm();
-  //   }
-  //   break;
   case FsmState::ARMING:
     if (nav_state_ == VehicleStatus::NAVIGATION_STATE_OFFBOARD &&
         arming_state_ == VehicleStatus::ARMING_STATE_ARMED) {
@@ -228,43 +201,6 @@ void OffboardFSM::timer_cb()
       try_set_offboard_and_arm();
     }
     break;
-
-  /* ---------- TAKEOFF ------------------------------------------- */
-  // case FsmState::TAKEOFF: {
-  //   /* -------- evaluate polynomial -------- */
-  //   double t = (now() - traj_start_).seconds();
-  //   if (t > traj_T_) t = traj_T_;          // clamp after arrival
-
-  //   TrajectorySetpoint sp{};
-  //   for (int k = 0; k < 3; ++k) {
-  //     sp.position[k]     = eval_poly(poly_[k], t);
-  //     sp.velocity[k]     = eval_d1 (poly_[k], t);
-  //     sp.acceleration[k] = eval_d2 (poly_[k], t);   
-  //     // sp.yaw         = enu_to_ned_yaw(0.0f);
-  //   }
-  //   // RCLCPP_INFO(get_logger(), "takeoff xy %2f, %2f", sp.position[0], sp.position[1]);
-  //   sp.timestamp = now().nanoseconds() / 1000ULL;
-  //   pub_traj_sp_->publish(sp);
-
-  //   /* -------- hold 5 s after arrival -------- */
-  //   bool arrived = (t >= traj_T_);
-  //   if (arrived && takeoff_complete_count_ < 0) {
-  //     takeoff_complete_count_ = offb_counter_;
-  //     RCLCPP_INFO(get_logger(), "Take-off spline finished, holding …");
-  //   }
-  //   bool hold_done = takeoff_complete_count_ >= 0 &&
-  //       (offb_counter_ - takeoff_complete_count_) * timer_period_s_ >= 10.0;
-
-  //   if (hold_done) {
-  //     RCLCPP_INFO(get_logger(), "Hold done");
-  //     current_state_ = FsmState::GOTO;
-  //     hover_x_ = sp.position[0];
-  //     hover_y_ = sp.position[1];
-  //     hover_z_ = sp.position[2];        // already NED
-  //     use_attitude_control_ = false;
-  //     offb_counter_ = 0;
-  //   }
-  // } break;
 
   case FsmState::TAKEOFF: {
     double elapsed   = offb_counter_ * timer_period_s_;

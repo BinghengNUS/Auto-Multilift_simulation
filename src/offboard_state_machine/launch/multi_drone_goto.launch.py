@@ -6,7 +6,7 @@ from launch.actions import OpaqueFunction
 from launch_ros.actions import Node
 
 try:
-    from px4_offboard.get_data_new import DataLoader       
+    from px4_offboard.get_data import DataLoader       
 except ImportError as e:
     raise RuntimeError(
         "Cannot import DataLoader from get_data.py. "
@@ -53,6 +53,7 @@ def launch_setup(context, *args, **kwargs):
                     "goto_x":   float(drone_pos_NED[i, 0]),
                     "goto_y":   float(drone_pos_NED[i, 1]),
                     "goto_z":   float(drone_pos_NED[i, 2]),
+                    "num_drones": num_drones,
                 }],
                 # keep default remappings – the FSM already builds its own namespace
             )
