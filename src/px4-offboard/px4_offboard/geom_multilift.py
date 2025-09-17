@@ -28,6 +28,7 @@ from std_msgs.msg import Int32
 import math, pathlib, atexit
 from   datetime import datetime
 from typing import Tuple
+import time
 
 
 
@@ -682,8 +683,9 @@ class GeomLiftCtrl(Node):
         self.traj_duration = 6.0  
         self.x_start = None 
         self.t_wait_traj = 0.0
+        self.ready_since = None
+        self.initial_ready_delay = 5.0  # seconds
         self.create_timer(self.dt_nom, self._step)
-
         self.get_logger().info("GeomLiftCtrl started.")
 
         # desired values initialization
@@ -701,7 +703,7 @@ class GeomLiftCtrl(Node):
         # self.mu_id_ddot_f = FirstOrderLowPass(cutoff_hz=8.0)
         # self.Omega_0_dot_f = FirstOrderLowPass(cutoff_hz=10.0)
         # self.mu_f = [FirstOrderLowPass(cutoff_hz=20.0)   for _ in range(self.n)]
-        
+
         # second order butterworth filter
         self.mu_id_dot_f = SecondOrderButterworth(cutoff_hz=10.0)
         self.mu_id_ddot_f = SecondOrderButterworth(cutoff_hz=10.0)
@@ -937,7 +939,7 @@ class GeomLiftCtrl(Node):
         self.Omega_0_hat = hat(self.Omega_0)  # (3,3)
         self.R_0_dot = self.R_0 @ self.Omega_0_hat
         if not hasattr(self, "omega_0_prev"):
-            # first iteration → no history yet
+            # first iteration -> no history yet
             self.omega_0_prev = self.Omega_0.copy()
             self.omega_0_dot  = np.zeros_like(self.Omega_0)
         else:
@@ -1077,44 +1079,68 @@ class GeomLiftCtrl(Node):
 
 
     def check_state(self, t):
-        ready       = np.isin(self.fsm_states, [3, 4]).all()
-        part_ready  = np.isin(self.fsm_states, [3, 4, 5]).all()
-        traj_ready_ = np.isin(self.fsm_states, [5]).all()
+        fs = np.asarray(self.fsm_states)  # vectorize once
 
-        msg = Int32()
-        msg.data = TRAJ   # =5
+        ready       = np.isin(fs, [3, 4]).all() and np.any(fs == 4)   # all in {3,4} AND at least one 4
+        part_ready  = np.isin(fs, [3, 4, 5]).all()
+        traj_ready_ = np.isin(fs, [5]).all()
 
-        if not self.traj_ready and np.any((self.fsm_states == ARMING) | (self.fsm_states == TAKEOFF)):
+        msg = Int32(); msg.data = TRAJ
+
+        # block
+        if not self.traj_ready and np.any((fs == ARMING) | (fs == TAKEOFF)):
+            # reset initial-ready timer because we're not stable yet
+            if not hasattr(self, "ready_since"):
+                self.ready_since = None
+            self.ready_since = None
             return
 
-        if ready:
-            if self.sim_t0 is None:
-                self.sim_t0 = t 
-            self.t_wait_traj = t - self.sim_t0
-            for i in range(self.n):
-                self.pub_cmd[i].publish(msg)   
+        # non-blocking
+        if not hasattr(self, "ready_since"):
+            self.ready_since = None
+        if not hasattr(self, "initial_ready_delay"):
+            self.initial_ready_delay = 10.0  # seconds
 
-        if part_ready:
-            idxs = [i for i, v in enumerate(self.fsm_states) if v != TRAJ]
+        if not self.traj_ready:
+            if ready:
+                if self.ready_since is None:
+                    self.ready_since = t  # latch first time we see 'ready'
+
+                # still waiting for initial delay -> do nothing yet
+                if (t - self.ready_since) < self.initial_ready_delay:
+                    return
+
+                # initial delay elapsed -> begin broadcasting TRAJ to all
+                if self.sim_t0 is None:
+                    self.sim_t0 = t
+                self.t_wait_traj = t - self.sim_t0
+                for i in range(self.n):
+                    self.pub_cmd[i].publish(msg)
+            else:
+                # lost 'ready' before countdown finished -> reset timer
+                self.ready_since = None
+
+        if self.traj_ready and part_ready:
+            idxs = np.where(fs != TRAJ)[0]
             for i in idxs:
                 self.pub_cmd[i].publish(msg)
 
         if (not self.traj_ready) and (self.t_wait_traj > 5.0 or traj_ready_):
             self.get_logger().info(f"All drones ready, start TRAJ at t={t:.2f}s")
             self.traj_ready = True
-            self.traj_t0 = t                   
+            self.traj_t0 = t
+            if self.sim_t0 is None:
+                self.sim_t0 = t
 
+        # --- finish trajectory ---
         if self.traj_ready and (not self.traj_done) and (t - self.traj_t0 >= self.traj_duration):
-            msg.data = 6
-            fsm_states = np.atleast_1d(self.fsm_states)  # Ensures it's at least a 1D array
-            idxs = np.where(fsm_states != 6)[0]
-            # print(idxs)
+            msg.data = END_TRAJ  # 6
+            idxs = np.where(fs != END_TRAJ)[0]
             for i in idxs:
                 self.pub_cmd[i].publish(msg)
                 self.traj_done_bit[i] = True
             if np.all(self.traj_done_bit):
                 self.traj_done = True
-
 
 
 def main() -> None:
