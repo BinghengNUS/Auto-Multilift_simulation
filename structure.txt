@@ -1,0 +1,29 @@
+.
+├── 3quad_traj
+│   ├── Planning_plots_multiagent_meta_evaluation (rg_001_-001_3quad_l=1m_100Hz_smooth_useThis)
+│   ├── Planning_plots_multiagent_meta_evaluation (rg_-003_-002_3quad_l=1m_100Hz_smooth_useThis)
+│   └── Planning_plots_multiagent_meta_evaluation (rg_-003_002_3quad_l=1m_100Hz_smooth_useThis)
+├── 6quad_traj
+│   ├── new_large_interagent_distance_reference
+│   ├── Planning_plots_multiagent_meta_evaluation
+│   ├── Planning_plots_multiagent_meta_evaluation (rg_001_-001_100Hz_6s_l=1m_large_dist_new_smooth_useThis)
+│   ├── Planning_plots_multiagent_meta_evaluation (rg_-003_-002_100Hz_6s_l=1m_large_dist_new_smooth_useThis)
+│   └── Planning_plots_multiagent_meta_evaluation (rg_-003_002_100Hz_6s_l=1m_large_dist_new_smooth_useThis)
+├── 7quad_traj
+│   ├── Planning_plots_multiagent_meta_evaluation (rg_001_-001_7quad_l=1m_100Hz_smooth_useThis)
+│   ├── Planning_plots_multiagent_meta_evaluation (rg_-003_-002_7quad_l=1m_100Hz_smooth_useThis)
+│   └── Planning_plots_multiagent_meta_evaluation (rg_-003_002_7quad_l=1m_100Hz_smooth_useThis)
+├── build
+├── plot_log.py
+├── README.md
+├── save_video.py
+├── src
+│   ├── offboard_state_machine
+│   ├── px4_msgs
+│   ├── px4-offboard
+│   ├── px4-ros2-interface-lib
+│   ├── px4_ros_com
+│   ├── px4_tf
+│   └── sitl_sim
+├── structure.txt
+└── videos.py

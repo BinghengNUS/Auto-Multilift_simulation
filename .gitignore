@@ -1,0 +1,48 @@
+# colcon
+build/
+install/
+log/
+
+# CMake tmp file
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Python compile
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ROS 2 
+ros2_ws/.colcon/
+ros2_ws/.vscode/
+rosbag*
+
+# VS Code 
+.vscode/
+*.code-workspace
+
+# JetBrains IDE（
+.idea/
+*.iml
+
+# ROS 2 launch/logs 
+*.log
+*.bag
+*.db3
+
+# Gazebo 
+*.world~
+*.sdf~
+*.urdf~
+
+# ROS 1 
+devel/
+
+# offline trajectory files
+*quad_traj/
+
+
