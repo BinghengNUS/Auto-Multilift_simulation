@@ -1,12 +1,15 @@
 # L2C simulation
+[![IsaacSim 4.2.0](https://img.shields.io/badge/IsaacSim-4.2.0-brightgreen.svg)](https://docs.isaacsim.omniverse.nvidia.com/4.2.0/index.html)
+[![PX4-Autopilot 1.16.0](https://img.shields.io/badge/PX4--Autopilot-1.16.0-brightgreen.svg)](https://px4.io)
+[![Ubuntu 22.04](https://img.shields.io/badge/Ubuntu-22.04LTS-orange.svg)](https://releases.ubuntu.com/jammy/)
+[![Pegasus Simulator](https://img.shields.io/badge/PegasusSimulator-4.2-brightgreen.svg)](https://github.com/PegasusSimulator/PegasusSimulator.git)
+[![Python](https://img.shields.io/badge/python-3.10-blue.svg)](https://docs.python.org/3/whatsnew/3.10.html)
 
-This is the ROS2 workspace of Auto-Multilift simulation. Please run:
+This is the ROS2 workspace of [Learning to Coordinate](https://github.com/BinghengNUS/Learning_to_Coordinate_1.git) simulation. 
+|     Three-UAV| Six-UAV| Seven-UAV|
+|-----------------------------------------------------------|--------------------------------------------------------------|--------------------------------------------------------------|
+![3_lift_-3_2_DDP](https://github.com/user-attachments/assets/540b1b1c-a35c-4dc6-bba5-f5c307c66c15) | ![6_lift_-3_2_DDP](https://github.com/user-attachments/assets/49a68a58-6f62-48fd-836a-3035bea2d15f) | ![7_lift_-3_2_DDP](https://github.com/user-attachments/assets/df62b0c8-aa98-4217-8cd2-4551f09a1973)
 
-```bash
-colcon build
-```
-
-to build the ros2 workspace.
 
 ## Simulation
 After training of the L2C code, you may run the simulation via putting the offline trajectory same as [structure.txt](./structure.txt). 
@@ -18,6 +21,13 @@ Please install tmux before running the demo code:
 ```bash
 sudo apt-get install tmux
 ```
+
+Please run:
+
+```bash
+colcon build
+```
+to build the ros2 workspace.
 
 Run 
 
@@ -40,6 +50,11 @@ To develop on the code, you may neeed to run [SimulatorSetup](https://github.com
  - To change the number of drones and the path of the offline trajectory, please modify [src/px4-offboard/px4_offboard/get_data.py](./src/px4-offboard/px4_offboard/get_data.py), [Line #18](./src/px4-offboard/px4_offboard/get_data.py#L18) for the number of drones and [Line #24](./src/px4-offboard/px4_offboard/get_data.py#L24) for the path of the offline trajectory.
 
 Please contact the developer if you encounter any other problems.
+
+## Contact Us
+If you encounter a bug in your implementation of the code, please do not hesitate to inform me.
+* Name: Dr. Bingheng Wang
+* Email: wangbingheng@u.nus.edu
 
 ## References
 
