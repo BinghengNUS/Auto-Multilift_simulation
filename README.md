@@ -8,7 +8,7 @@
 This is the ROS2 workspace of [Learning to Coordinate](https://github.com/BinghengNUS/Learning_to_Coordinate_1.git) simulation. 
 |     Three-UAV| Six-UAV| Seven-UAV|
 |-----------------------------------------------------------|--------------------------------------------------------------|--------------------------------------------------------------|
-![3_lift_-3_2_DDP](https://github.com/user-attachments/assets/540b1b1c-a35c-4dc6-bba5-f5c307c66c15) | ![6_lift_-3_2_DDP](https://github.com/user-attachments/assets/49a68a58-6f62-48fd-836a-3035bea2d15f) | ![7_lift_-3_2_DDP](https://github.com/user-attachments/assets/df62b0c8-aa98-4217-8cd2-4551f09a1973)
+![3_lift_-3_2_DDP](./doc/3drone.gif) | ![6_lift_-3_2_DDP](./doc/6drone.gif) | ![7_lift_-3_2_DDP](./doc/7drone.gif)
 
 
 ## Simulation
