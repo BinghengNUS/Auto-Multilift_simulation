@@ -5,7 +5,10 @@
 import numpy as np
 from casadi import *
 import math
+from pathlib import Path
 # from pxr import Gf
+
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 class DataLoader():
     """
@@ -18,8 +21,8 @@ class DataLoader():
         self.rl = 0.25
         self.alpha  = 2 * np.pi / self.num_drones
         self.cable_length = 1.0
-        self.path = f'/home/carlson/ros2/multilift_ws/{self.num_drones}quad_traj/Planning_plots_multiagent_meta_evaluation (rg_-003_002_{self.num_drones}quad_l=1m_100Hz_smooth_useThis)'
-        self.ml = 1.50   # payload mass
+        self.path = BASE_DIR / f"{self.num_drones}quad_traj" / \
+             f"Planning_plots_multiagent_meta_evaluation (rg_-003_002_{self.num_drones}quad_l=1m_100Hz_smooth_useThis)"
         self.g = 9.81   # gravity
         self.train_idx = -1
         self.task_idx = 0
