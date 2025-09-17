@@ -44,6 +44,9 @@ tmux kill-session sitl
 
 ## For developers 
 To develop on the code, you may neeed to run [SimulatorSetup](https://github.com/Temasek-Dynamics/SimulatorSetup.git) for easier install.
+```bash
+git clone https://github.com/Temasek-Dynamics/SimulatorSetup.git -b dev_yichao
+```
 
  - The Isaac Sim simulator related code is in [src/sitl_sim/sitl_sim/iris_modified_sitl.py](./src/sitl_sim/sitl_sim/iris_modified_sitl.py)
  - To change the center of mass of the payload, you need to modify [src/sitl_sim/sitl_sim/cable_model.py, line 46](./src/sitl_sim/sitl_sim/cable_model.py#L46)
