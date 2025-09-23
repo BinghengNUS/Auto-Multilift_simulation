@@ -177,8 +177,8 @@ def spawn_scene(sim: Sim, node, init_pubs) -> None:
 
 
     # generate obsticle
-    obsticle_1_pos = np.array([1.58,1.16,1])
-    obsticle_2_pos = np.array([0.34,3.17,1])
+    obsticle_1_pos = np.array([1.60,1.15,1])
+    obsticle_2_pos = np.array([0.37,3.17,1])
     obsticle_1 = sim.world.scene.add(
         VisualCylinder(
             prim_path = '/World/Obstical_1',
