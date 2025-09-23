@@ -43,6 +43,6 @@ rosbag*
 devel/
 
 # offline trajectory files
-*quad_traj/
+# *quad_traj/
 
 
