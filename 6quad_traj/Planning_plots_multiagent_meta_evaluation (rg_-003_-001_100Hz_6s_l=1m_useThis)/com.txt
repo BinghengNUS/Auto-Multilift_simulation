@@ -1,0 +1,5 @@
+sysm_para = np.array([1.5, 0.25, 0.25,0.25,0.25, -0.03,-0.01,0, 6, 1, 0.125, 0.75, 0.25])  
+dt        = 0.01 # step size 0.1s
+pob1, pob2 = np.array([[1.6,1.1]]).T, np.array([[0.35,3.1]]).T # planar positions of the two obstacle in the world frame
+
+t1 = 3.5 # for tf = 6s
