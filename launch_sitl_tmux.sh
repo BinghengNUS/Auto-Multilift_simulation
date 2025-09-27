@@ -5,6 +5,8 @@ set -eo pipefail
 SESSION=${1:-sitl}
 DIR="$(cd "$(dirname "$0")" && pwd)"
 SIM="$HOME/.local/share/ov/pkg/isaac-sim-4.2.0/python.sh"
+# source ROS2 humble
+source /opt/ros/humble/setup.bash
 ENV="source $DIR/install/setup.bash"   # colcon env
 
 # clean old session

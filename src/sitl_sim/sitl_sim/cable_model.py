@@ -42,8 +42,8 @@ class RigidBodyRopes(demo.Base):
         self._payloadHight = self._payloadRadius / 8
         self._payloadMass = payload_mass
         self._payloadColor = [0.22, 0.43, 0.55]
-        self._payloadInertia = Gf.Vec3f(0.05, 0.05, 0.1)
-        self._payloadCoM = Gf.Vec3f(-0.03, 0.02 , 0)
+        self._payloadInertia = Gf.Vec3f(0.08, 0.08, 0.1)
+        self._payloadCoM = Gf.Vec3f(0.01, -0.01 , 0)
 
         # self._initLoadHeight = load_height
         self._initLoadHeight = self._payloadHight / 2

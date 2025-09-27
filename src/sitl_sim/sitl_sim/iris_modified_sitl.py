@@ -12,8 +12,8 @@ import threading
 
 #  Isaac Sim core 
 from isaacsim import SimulationApp
-# simulation_app = SimulationApp({"headless": False})
-simulation_app = SimulationApp({"headless": True})
+simulation_app = SimulationApp({"headless": False})
+# simulation_app = SimulationApp({"headless": True})
 import omni.timeline as tl
 from omni.isaac.core.utils.extensions import enable_extension
 enable_extension("omni.isaac.ros2_bridge")                   # ROS 2 bridge
@@ -178,7 +178,7 @@ def spawn_scene(sim: Sim, node, init_pubs) -> None:
 
     # generate obsticle
     obsticle_1_pos = np.array([1.60,1.15,1])
-    obsticle_2_pos = np.array([0.37,3.17,1])
+    obsticle_2_pos = np.array([0.35,3.20,1])
     obsticle_1 = sim.world.scene.add(
         VisualCylinder(
             prim_path = '/World/Obstical_1',
