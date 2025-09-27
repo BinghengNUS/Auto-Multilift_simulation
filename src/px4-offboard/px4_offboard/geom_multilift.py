@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-ROSGeomState pose collector for geometric controllers
-Author : Yichao Gao ( 11-Sept 2025 modified)
-"""
-
 import rclpy
 import math
 from rclpy.node import Node

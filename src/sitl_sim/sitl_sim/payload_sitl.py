@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 | File: payload_sitl.py
 | Description: SITL payload example with initial-pos publishing
@@ -151,7 +150,7 @@ def main():
         node.create_publisher(TransformStamped, f"drone_{i}_init_pos", 10)
         for i in range(num)
     ]
-
+    # TODO: use omnigraph for non-blocking publish
     # setup simulation and spawn everything
     pg_app = PegasusApp()
     spawn_and_publish(pg_app, node, publishers)
