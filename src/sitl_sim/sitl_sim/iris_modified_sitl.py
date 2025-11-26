@@ -57,7 +57,7 @@ import rclpy
 import usdrt.Sdf
 
 #  constants 
-NUM_DRONES   = 3
+NUM_DRONES   = 6
 ROS_PUB_HZ   = 100.0
 PAYLOAD_PRIM = "/World/CommonPayload/Payload"
 CAMERA_STAGE_PATH = "/World/camera"
@@ -132,7 +132,7 @@ def create_marker(sim, name, radius, position, path, color) -> None:
 #  Scene builder
 def spawn_scene(sim: Sim, node, init_pubs) -> None:
     stage = sim.world.stage
-    # RigidBodyRopes().create(stage, NUM_DRONES, 0.9, 1.50, 0.05)
+    # RigidBodyRopes().create(stage, NUM_DRONES, 1.0, 2.0, 0.05)
     RigidBodyRopes().create(stage, NUM_DRONES, 1.0, 1.50, 0.05)
     xf_cache = UsdGeom.XformCache()
     sleep(1.0)                                             # wait for USD build

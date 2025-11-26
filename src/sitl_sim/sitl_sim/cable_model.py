@@ -42,8 +42,8 @@ class RigidBodyRopes(demo.Base):
         self._payloadHight = self._payloadRadius / 8
         self._payloadMass = payload_mass
         self._payloadColor = [0.22, 0.43, 0.55]
-        self._payloadInertia = Gf.Vec3f(0.08, 0.08, 0.1)
-        self._payloadCoM = Gf.Vec3f(0.01, -0.01 , 0)
+        self._payloadInertia = Gf.Vec3f(0.05, 0.05, 0.1)
+        self._payloadCoM = Gf.Vec3f(-0.03, 0.02 , 0)
 
         # self._initLoadHeight = load_height
         self._initLoadHeight = self._payloadHight / 2
@@ -55,13 +55,13 @@ class RigidBodyRopes(demo.Base):
         # self._crossPath = self._payloadXform.AppendChild("Cross")
 
         ## Ropes config:
-        self._linkHalfLength = 0.09
+        self._linkHalfLength = 0.088
         self._linkRadius = 0.005
         self._ropeLength = rope_length
         self._numRopes = num_ropes
         self._ropeSpacing = 15.0
         # self._ropeColor = demo.get_primary_color()
-        self._ropeColor = Gf.Vec3f(1.0, 1.0, 1.0)
+        self._ropeColor = Gf.Vec3f(0.90, 0.90, 0.90)
 
         self._coneAngleLimit = 160
         self._slideLimit = 0.1

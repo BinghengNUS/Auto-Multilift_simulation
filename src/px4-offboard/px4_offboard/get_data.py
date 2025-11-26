@@ -15,14 +15,15 @@ class DataLoader():
     Class to load planned trajectory data from data files.
     """
     def __init__(self):
-        self.num_drones = 3
+        self.num_drones = 6
         # self.CoM = Gf.Vec3f(-0.03, 0.02, 0.0)
         self.dt = 0.01  # 100Hz
         self.rl = 0.25
         self.alpha  = 2 * np.pi / self.num_drones
         self.cable_length = 1.0
-        self.path = BASE_DIR / f"{self.num_drones}quad_traj" / \
-             f"Planning_plots_multiagent_meta_evaluation (rg_-003_002_{self.num_drones}quad_l=1m_100Hz_smooth_useThis)"
+        # self.path = BASE_DIR / f"{self.num_drones}quad_traj" / \
+        #      f"Planning_plots_multiagent_meta_evaluation (rg_-003_002_{self.num_drones}quad_l=1m_100Hz_smooth_useThis)"
+        self.path = "/home/carlson/ros2/multilift_ws/6quad_traj/Planning_plots_multiagent_meta_evaluation (stableDDP_small_J_rog_-003_002)"
         self.g = 9.81   # gravity
         self.train_idx = -1
         self.task_idx = 0

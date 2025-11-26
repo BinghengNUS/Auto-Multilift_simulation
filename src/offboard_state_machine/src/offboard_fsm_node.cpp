@@ -311,6 +311,11 @@ void OffboardFSM::timer_cb()
       use_attitude_control_ = false;
       state_start_time_     = now();      // reset timer in case of re-entry
       RCLCPP_INFO(get_logger(), "Trajectory done");
+    //   if (hold_done) {
+    //   current_state_ = FsmState::GOTO;
+    //   state_start_time_ = now();
+    //   offb_counter_   = 0;
+    // }
     }break;
 
   /* ---------- LAND ---------------------------------------------- */

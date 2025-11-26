@@ -95,7 +95,7 @@ private:
   double goto_y_{std::numeric_limits<double>::quiet_NaN()};
   double goto_z_{std::numeric_limits<double>::quiet_NaN()};
 
-  double   goto_tol_{0.025};
+  double   goto_tol_{0.03};
 
   std::string px4_ns_;
 

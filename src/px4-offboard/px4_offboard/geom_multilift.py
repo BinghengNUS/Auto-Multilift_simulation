@@ -638,10 +638,10 @@ class GeomLiftCtrl(Node):
         
 
         #--- physical parameters (edit for real hardware) ------------
-        self.payload_m = 1.50
+        self.payload_m = 1.5
         self.m_drones = 0.250      # drone mass    [kg]
         # self.max_thrust = 2.58 * self.m_drones * 9.81    # for 1kg drone
-        self.max_thrust = 8.0 * self.m_drones * 9.81  # max thrust per drone [N] for 250g drone
+        self.max_thrust = 7.90 * self.m_drones * 9.81  # max thrust per drone [N] for 250g drone
         self.l    = 1.0         # cable length   [m]
         self.g    = np.array([0.0, 0.0, 9.81])
         
@@ -699,16 +699,16 @@ class GeomLiftCtrl(Node):
 
 
         # first order lowpass
-        # self.mu_id_dot_f = FirstOrderLowPass(cutoff_hz=8.0)
-        # self.mu_id_ddot_f = FirstOrderLowPass(cutoff_hz=8.0)
-        # self.Omega_0_dot_f = FirstOrderLowPass(cutoff_hz=10.0)
-        # self.mu_f = [FirstOrderLowPass(cutoff_hz=20.0)   for _ in range(self.n)]
+        self.mu_id_dot_f = FirstOrderLowPass(cutoff_hz=8.0)
+        self.mu_id_ddot_f = FirstOrderLowPass(cutoff_hz=8.0)
+        self.Omega_0_dot_f = FirstOrderLowPass(cutoff_hz=10.0)
+        self.mu_f = [FirstOrderLowPass(cutoff_hz=20.0)   for _ in range(self.n)]
 
         # second order butterworth filter
-        self.mu_id_dot_f = SecondOrderButterworth(cutoff_hz=10.0)
-        self.mu_id_ddot_f = SecondOrderButterworth(cutoff_hz=10.0)
-        self.Omega_0_dot_f = SecondOrderButterworth(cutoff_hz=18.0)
-        self.mu_f = [SecondOrderButterworth(cutoff_hz=20.0)   for _ in range(self.n)]
+        # self.mu_id_dot_f = SecondOrderButterworth(cutoff_hz=10.0)
+        # self.mu_id_ddot_f = SecondOrderButterworth(cutoff_hz=10.0)
+        # self.Omega_0_dot_f = SecondOrderButterworth(cutoff_hz=18.0)
+        # self.mu_f = [SecondOrderButterworth(cutoff_hz=20.0)   for _ in range(self.n)]
 
 
         #--- control gains (PD only ) --------------------
@@ -716,12 +716,12 @@ class GeomLiftCtrl(Node):
         # self.kw = 3.40
         self.kq = 9.50
         self.kw = 3.40
-        self.z_weight = 0.30    # weight for the geometric control z axis
+        self.z_weight = 0.3    # weight for the geometric control z axis
 
 
         self.k_ddp = np.zeros((6,13))
         # self.alpha = 0.0       # DDP feedback gain 
-        self.alpha = 0.05
+        self.alpha = 0.10
 
         # self.slowdown = 1.25     # for test only, no slowdown
         self.slowdown = 1.0     # no slowdown
@@ -893,6 +893,7 @@ class GeomLiftCtrl(Node):
 
         for i in range(self.n):
             self.x_id[i] = self.x_d + self.R_d @ self.rho[i] - self.l * self.q_id[i] - self.offset_pos[i]
+            print(f"Desired position of drone {i}: {self.x_id[i] + self.offset_pos[i]}")
             self.v_id[i] = (self.v_d + self.R_d_dot @ self.rho[i] - self.l * self.q_id_dot[i])  
 
     def _step(self) -> None:
