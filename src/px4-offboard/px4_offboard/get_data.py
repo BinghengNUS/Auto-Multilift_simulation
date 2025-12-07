@@ -23,20 +23,25 @@ class DataLoader():
         self.cable_length = 1.0
         # self.path = BASE_DIR / f"{self.num_drones}quad_traj" / \
         #      f"Planning_plots_multiagent_meta_evaluation (rg_-003_002_{self.num_drones}quad_l=1m_100Hz_smooth_useThis)"
-        self.path = "/home/carlson/ros2/multilift_ws/6quad_traj/Planning_plots_multiagent_meta_evaluation (stableDDP_small_J_rog_-003_002)"
+        self.path = Path("/home/carlson/ros2/multilift_ws/6quad_traj/Planning_plots_multiagent_meta_evaluation (stableDDP_small_J_rog_-003_002)")
         self.g = 9.81   # gravity
         self.train_idx = -1
         self.task_idx = 0
         self.ez = np.array([0,0,1]).reshape(3,1)
         
         # coefficients of the trajectory
+        reference_dir = self.path / "Reference_traj_5"
+        if not reference_dir.exists():
+            reference_dir = self.path / "Reference_traj_6"
+        self.path = self.path.as_posix()
+        reference_dir = reference_dir.as_posix()
         self.Coeffx = np.zeros((2,8))
         self.Coeffy = np.zeros((2,8))
         self.Coeffz = np.zeros((2,8))
         for k in range(2):
-            self.Coeffx[k,:] = np.load(f'{self.path}/Reference_traj_6/coeffx'+str(k+1)+'.npy')  # TODO: change the path of 5s
-            self.Coeffy[k,:] = np.load(f'{self.path}/Reference_traj_6/coeffy'+str(k+1)+'.npy')
-            self.Coeffz[k,:] = np.load(f'{self.path}/Reference_traj_6/coeffz'+str(k+1)+'.npy')
+            self.Coeffx[k,:] = np.load(f'{reference_dir}/coeffx'+str(k+1)+'.npy')
+            self.Coeffy[k,:] = np.load(f'{reference_dir}/coeffy'+str(k+1)+'.npy')
+            self.Coeffz[k,:] = np.load(f'{reference_dir}/coeffz'+str(k+1)+'.npy')
 
         # payload trajectory 
         self.xl_train = np.load(f'{self.path}/xl_traj.npy', allow_pickle=True)

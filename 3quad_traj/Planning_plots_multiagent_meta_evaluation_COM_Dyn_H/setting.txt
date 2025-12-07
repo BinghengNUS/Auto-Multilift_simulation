@@ -1,0 +1,13 @@
+no offset
+ 
+ random rg_task for evaluation= [[-0.00261206]
+ [ 0.00186098]
+ [ 0.        ]] rp= [[-0.0235085 ]
+ [ 0.01674886]
+ [ 0.        ]]
+ m2(added mss) = 0.05 kg, m1(plate) = 0.4 kg
+ ADMM = 3 iteration-varying penalty
+ 
+time-step = 0.05s (20Hz), N=120, total time = 6s
+
+start-point = [-2m,-2m], end-point = [2m,2m]

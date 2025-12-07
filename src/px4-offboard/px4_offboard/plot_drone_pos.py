@@ -8,7 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 # 1)  Load reference data
 
-from get_data import DataLoader
+from get_data_new import DataLoader
 data = DataLoader()
 
 
@@ -21,8 +21,8 @@ def equal_axis(ax, size=4):
     ax.set_ylim(ym - half, ym + half)
     ax.set_zlim(zm - half, zm + half)
 
-N_DRONES = 6
-DT       = 0.01                          # 25 Hz  → 0.04 s
+N_DRONES = 3
+DT       = 0.05                          # 20 Hz  → 0.05 s
 N        = data.payload_x.shape[0]       # samples
 T        = np.arange(N) * DT             # time axis
 
