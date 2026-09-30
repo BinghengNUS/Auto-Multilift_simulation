@@ -39,7 +39,7 @@ to run the single iris drone offboard control demo.
 
 To exit the demo, please run:
 ```bash
-tmux kill-session sitl
+tmux kill-session -t sitl
 ```
 
 ## For developers 
